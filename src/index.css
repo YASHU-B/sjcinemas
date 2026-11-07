@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 12, 18, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(225, 29, 46, 0.4);
+}
+
+/* Starry pulse animation */
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Neon glow pulse */
+@keyframes neon-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(225, 29, 46, 0.6)); }
+  50% { filter: drop-shadow(0 0 14px rgba(225, 29, 46, 0.95)); }
+}
+
+.animate-neon {
+  animation: neon-pulse 3s ease-in-out infinite;
+}
+
+/* Screen reflection ambient */
+.cinema-screen-glow {
+  box-shadow: 0 0 80px 20px rgba(59, 130, 246, 0.15), 0 0 120px 40px rgba(225, 29, 46, 0.1);
+}
+
