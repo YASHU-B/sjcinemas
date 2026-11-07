@@ -66,43 +66,169 @@ export const SPEAKERS: AudioSpeaker[] = [
 ];
 
 // Exact SJ Cinemas Nagari BookMyShow Seat Plan
+// Matches official BookMyShow layout for "SJ CINEMAS SREENIVASA A/C 4K DOLBY ATMOS: Nagari"
 // Rows from front to back:
 // Row T is closest to the screen (front)
 // Row A is at the very back (elevated rear)
 // There is a cross-aisle walkway between Row K and Row L
+export interface SeatSlot {
+  slot: number; // 0-based column index within the block (Left: 0..5, Center: 0..9, Right: 0..5)
+  seatNum: number; // Printed BookMyShow seat number
+}
+
 export interface ExactRowPlan {
   rowLabel: string;
+  leftSlots: SeatSlot[];
+  centerSlots: SeatSlot[];
+  rightSlots: SeatSlot[];
   leftSeats: number[];
   centerSeats: number[];
   rightSeats: number[];
 }
 
+const makeSlots = (slots: number[], startNum: number): { slots: SeatSlot[], nums: number[] } => {
+  const result: SeatSlot[] = [];
+  const nums: number[] = [];
+  slots.forEach((s, idx) => {
+    const num = startNum + idx;
+    result.push({ slot: s, seatNum: num });
+    nums.push(num);
+  });
+  return { slots: result, nums };
+};
+
+// Row definitions matching the exact BookMyShow screenshot
 export const EXACT_SEAT_PLAN: ExactRowPlan[] = [
-  // Front block (Rows T to L)
-  { rowLabel: 'T', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'S', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'R', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'Q', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'P', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'O', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'N', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'M', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'L', leftSeats: [1,2,3,4,5], centerSeats: [6,7,8,9,10,11,12,13,14,15], rightSeats: [16,17,18,19,20] },
+  // Front Lower Block (Rows T to L)
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'T', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'S', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'R', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'Q', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'P', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'O', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'N', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'M', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    // Row L: 5 seats on left (slots 0..4), 10 seats in center (slots 0..9), 5 seats on right (slots 0..4)
+    const l = makeSlots([0, 1, 2, 3, 4], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 6);
+    const r = makeSlots([0, 1, 2, 3, 4], 16);
+    return { rowLabel: 'L', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
 
-  // Walkway / Gangway between L and K
+  // Walkway / Cross-Aisle between Row L and Row K
 
-  // Upper / Rear Stadium block (Rows K to A)
-  { rowLabel: 'K', leftSeats: [1,2,3,4], centerSeats: [5,6,7,8,9,10,11,12,13,14], rightSeats: [15,16,17,18] },
-  { rowLabel: 'J', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'I', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'H', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'G', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'F', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'E', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'D', leftSeats: [1,2,3,4,5,6], centerSeats: [7,8,9,10,11,12,13,14,15,16], rightSeats: [17,18,19,20,21,22] },
-  { rowLabel: 'C', leftSeats: [1,2,3,4], centerSeats: [5,6,7,8,9,10], rightSeats: [11,12,13,14] },
-  { rowLabel: 'B', leftSeats: [1,2,3,4], centerSeats: [5,6,7,8,9,10], rightSeats: [11,12,13,14] },
-  { rowLabel: 'A', leftSeats: [1,2,3,4], centerSeats: [5,6,7,8,9,10,11,12], rightSeats: [13,14,15,16] }
+  // Upper Stadium Block (Rows K to A)
+  (() => {
+    // Row K: 4 seats left (slots 2,3,4,5), 10 seats center (slots 0..9), 4 seats right (slots 0,1,2,3)
+    const l = makeSlots([2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 5);
+    const r = makeSlots([0, 1, 2, 3], 15);
+    return { rowLabel: 'K', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'J', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'I', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'H', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'G', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'F', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'E', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
+    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
+    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
+    return { rowLabel: 'D', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    // Row C: 4 seats left (slots 2,3,4,5), 6 seats center (slots 2..7), 4 seats right (slots 0,1,2,3)
+    const l = makeSlots([2, 3, 4, 5], 1);
+    const c = makeSlots([2, 3, 4, 5, 6, 7], 5);
+    const r = makeSlots([0, 1, 2, 3], 11);
+    return { rowLabel: 'C', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    // Row B: 4 seats left (slots 2,3,4,5), 6 seats center (slots 2..7), 4 seats right (slots 0,1,2,3)
+    const l = makeSlots([2, 3, 4, 5], 1);
+    const c = makeSlots([2, 3, 4, 5, 6, 7], 5);
+    const r = makeSlots([0, 1, 2, 3], 11);
+    return { rowLabel: 'B', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })(),
+  (() => {
+    // Row A: 4 seats left (slots 2,3,4,5), 8 seats center (slots 1..8), 4 seats right (slots 0,1,2,3)
+    const l = makeSlots([2, 3, 4, 5], 1);
+    const c = makeSlots([1, 2, 3, 4, 5, 6, 7, 8], 5);
+    const r = makeSlots([0, 1, 2, 3], 13);
+    return { rowLabel: 'A', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
+  })()
 ];
 
 export function generateSeats(): Seat[] {
@@ -130,26 +256,20 @@ export function generateSeats(): Seat[] {
       tier = 'SILVER'; // Front rows T, S, R, Q
     }
 
-    // Function to place a block of seats (matching SJ Cinemas Nagari BookMyShow arrangement)
-    const placeBlock = (seatNumbers: number[], blockType: 'LEFT' | 'CENTER' | 'RIGHT') => {
-      seatNumbers.forEach((seatNum, idxInBlock) => {
+    // Function to place a block of seats matching exact column slots
+    const placeBlock = (seatSlots: SeatSlot[], blockType: 'LEFT' | 'CENTER' | 'RIGHT') => {
+      seatSlots.forEach(({ slot, seatNum }) => {
         let posX = 0;
 
         if (blockType === 'CENTER') {
-          // Center block is symmetrically centered around x = 0
-          const count = seatNumbers.length;
-          const centeredIndex = idxInBlock - (count - 1) / 2;
-          posX = centeredIndex * seatWidth;
+          // Center block: 10 slots (0..9) centered around x = 0
+          posX = (slot - 4.5) * seatWidth;
         } else if (blockType === 'LEFT') {
-          // Left block sits to the left of the left walkway aisle (x <= -4.05m)
-          // The rightmost seat in the left block is adjacent to the left aisle
-          const distFromLeftAisle = (seatNumbers.length - 1 - idxInBlock) * seatWidth;
-          posX = -(5 * seatWidth + aisleWidth + seatWidth / 2 + distFromLeftAisle);
+          // Left block: 6 slots (0..5), slot 5 is adjacent to the left walkway aisle
+          posX = -(4.5 * seatWidth + aisleWidth + (5 - slot) * seatWidth);
         } else if (blockType === 'RIGHT') {
-          // Right block sits to the right of the right walkway aisle (x >= +4.05m)
-          // The leftmost seat in the right block is adjacent to the right aisle
-          const distFromRightAisle = idxInBlock * seatWidth;
-          posX = +(5 * seatWidth + aisleWidth + seatWidth / 2 + distFromRightAisle);
+          // Right block: 6 slots (0..5), slot 0 is adjacent to the right walkway aisle
+          posX = +(4.5 * seatWidth + aisleWidth + slot * seatWidth);
         }
 
         // Apply gentle row curvature so every seat faces screen center
@@ -181,9 +301,9 @@ export function generateSeats(): Seat[] {
       });
     };
 
-    placeBlock(plan.leftSeats, 'LEFT');
-    placeBlock(plan.centerSeats, 'CENTER');
-    placeBlock(plan.rightSeats, 'RIGHT');
+    placeBlock(plan.leftSlots, 'LEFT');
+    placeBlock(plan.centerSlots, 'CENTER');
+    placeBlock(plan.rightSlots, 'RIGHT');
   });
 
   return seats;

@@ -36,7 +36,7 @@ export const SeatMap2D: React.FC<SeatMap2DProps> = ({
             <Armchair className="w-4 h-4 text-red-500" />
             Auditorium Seating Layout
           </h3>
-          <p className="text-[10px] text-white/50">SJ Cinemas Nagari • 412 Seats</p>
+          <p className="text-[10px] text-white/50">SJ Cinemas Nagari • {seats.length} Seats</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export const SeatMap2D: React.FC<SeatMap2DProps> = ({
         {/* Category Header (Platinum) */}
         <div className="text-center mb-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/40 border-b border-white/10 pb-0.5">
-            Auditorium 1 • Platinum (412 Seats)
+            Auditorium 1 • ₹150 Platinum ({seats.length} Seats)
           </span>
         </div>
 
@@ -99,9 +99,19 @@ export const SeatMap2D: React.FC<SeatMap2DProps> = ({
                     {rowPlan.rowLabel}
                   </span>
 
-                  {/* Left Block (Seats 1-6) */}
+                  {/* Left Block (6 Columns: slots 0 to 5) */}
                   <div className="flex items-center gap-[2.5px] sm:gap-[3px]">
-                    {rowPlan.leftSeats.map(num => {
+                    {[0, 1, 2, 3, 4, 5].map(colSlot => {
+                      const slotItem = rowPlan.leftSlots.find(s => s.slot === colSlot);
+                      if (!slotItem) {
+                        return (
+                          <div
+                            key={`empty-l-${colSlot}`}
+                            className="w-[15px] h-[15px] sm:w-[17px] sm:h-[17px] shrink-0 pointer-events-none opacity-0"
+                          />
+                        );
+                      }
+                      const num = slotItem.seatNum;
                       const seatId = `${rowPlan.rowLabel}${num}`;
                       const seat = seatLookup.get(seatId);
                       if (!seat) return null;
@@ -135,9 +145,19 @@ export const SeatMap2D: React.FC<SeatMap2DProps> = ({
                   {/* Left Aisle Gap */}
                   <div className="w-2.5 sm:w-3.5 shrink-0"></div>
 
-                  {/* Center Block (Seats 7-16) */}
+                  {/* Center Block (10 Columns: slots 0 to 9) */}
                   <div className="flex items-center gap-[2.5px] sm:gap-[3px]">
-                    {rowPlan.centerSeats.map(num => {
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(colSlot => {
+                      const slotItem = rowPlan.centerSlots.find(s => s.slot === colSlot);
+                      if (!slotItem) {
+                        return (
+                          <div
+                            key={`empty-c-${colSlot}`}
+                            className="w-[15px] h-[15px] sm:w-[17px] sm:h-[17px] shrink-0 pointer-events-none opacity-0"
+                          />
+                        );
+                      }
+                      const num = slotItem.seatNum;
                       const seatId = `${rowPlan.rowLabel}${num}`;
                       const seat = seatLookup.get(seatId);
                       if (!seat) return null;
@@ -171,9 +191,19 @@ export const SeatMap2D: React.FC<SeatMap2DProps> = ({
                   {/* Right Aisle Gap */}
                   <div className="w-2.5 sm:w-3.5 shrink-0"></div>
 
-                  {/* Right Block (Seats 17-22) */}
+                  {/* Right Block (6 Columns: slots 0 to 5) */}
                   <div className="flex items-center gap-[2.5px] sm:gap-[3px]">
-                    {rowPlan.rightSeats.map(num => {
+                    {[0, 1, 2, 3, 4, 5].map(colSlot => {
+                      const slotItem = rowPlan.rightSlots.find(s => s.slot === colSlot);
+                      if (!slotItem) {
+                        return (
+                          <div
+                            key={`empty-r-${colSlot}`}
+                            className="w-[15px] h-[15px] sm:w-[17px] sm:h-[17px] shrink-0 pointer-events-none opacity-0"
+                          />
+                        );
+                      }
+                      const num = slotItem.seatNum;
                       const seatId = `${rowPlan.rowLabel}${num}`;
                       const seat = seatLookup.get(seatId);
                       if (!seat) return null;

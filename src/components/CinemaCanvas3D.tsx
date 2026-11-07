@@ -1599,8 +1599,10 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       <video
         ref={videoElementRef}
         playsInline
+        crossOrigin="anonymous"
         loop
         preload="auto"
+        muted={isMuted}
         style={{
           position: 'absolute',
           width: '1px',
