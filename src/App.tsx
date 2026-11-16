@@ -13,18 +13,53 @@ import { CinemaCanvas3D } from './components/CinemaCanvas3D';
 import { SeatMap2D } from './components/SeatMap2D';
 import { ControlToolbar } from './components/ControlToolbar';
 import { AuditoriumInfoModal } from './components/AuditoriumInfoModal';
-import { Sparkles, MapPin, Film, ChevronRight, Armchair, DoorOpen } from 'lucide-react';
+import { AdminPanelModal } from './components/AdminPanelModal';
+import { Sparkles, MapPin, Film, ChevronRight, Armchair, DoorOpen, ShieldCheck } from 'lucide-react';
 import { CinemaEntryOverlay } from './components/CinemaEntryOverlay';
 
 export const App: React.FC = () => {
   // Generate seats
   const seats = useMemo(() => generateSeats(), []);
 
+  // Trailers catalog state (hydrated from localStorage or default TRAILERS)
+  const [trailers, setTrailers] = useState<TrailerVideo[]>(() => {
+    try {
+      const saved = localStorage.getItem('sjcinemas_custom_trailers');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return TRAILERS;
+  });
+
   // Default to the prime sweet spot seat (H11 - Gold Club)
   const [selectedSeatId, setSelectedSeatId] = useState<string>('H11');
-  const [activeTrailer, setActiveTrailer] = useState<TrailerVideo>(TRAILERS[0]);
-  const [customVideoUrl, setCustomVideoUrl] = useState<string | null>(null);
-  const [customVideoName, setCustomVideoName] = useState<string | null>(null);
+
+  // Active trailer state (hydrated from localStorage)
+  const [activeTrailer, setActiveTrailer] = useState<TrailerVideo>(() => {
+    try {
+      const savedId = localStorage.getItem('sjcinemas_active_trailer_id');
+      if (savedId) {
+        const found = trailers.find(t => t.id === savedId);
+        if (found) return found;
+      }
+    } catch {}
+    return trailers[0];
+  });
+
+  // Video URL state (defaulting to the newly added /trailers/leo.mp4)
+  const [customVideoUrl, setCustomVideoUrl] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('sjcinemas_custom_video_url') || '/trailers/leo.mp4';
+    } catch {}
+    return '/trailers/leo.mp4';
+  });
+
+  const [customVideoName, setCustomVideoName] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('sjcinemas_custom_video_name') || 'Leo (2023) Official 4K Trailer';
+    } catch {}
+    return 'Leo (2023) Official 4K Trailer';
+  });
+
   const [showEntry, setShowEntry] = useState<boolean>(true); // Grand cinema entry on site load!
   const [isWalkingIn, setIsWalkingIn] = useState<boolean>(false);
   const [lightsUp, setLightsUp] = useState<boolean>(true); // Start in warm walk-in lighting
@@ -35,6 +70,7 @@ export const App: React.FC = () => {
   const [showSpeakers, setShowSpeakers] = useState<boolean>(false);
   const [isSeatMapOpen, setIsSeatMapOpen] = useState<boolean>(false); // Hidden by default for full immersion!
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
+  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false); // Theatre Owner Control Panel
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // Auto-detect mobile, tablets, or low-power screens for default Eco mode
@@ -71,9 +107,9 @@ export const App: React.FC = () => {
     setViewMode('SEAT');
   };
 
-  // Load custom raw video file
+  // Load custom raw video file from disk or upload
   const handleLoadVideoFile = (file: File) => {
-    if (customVideoUrl) {
+    if (customVideoUrl && customVideoUrl.startsWith('blob:')) {
       URL.revokeObjectURL(customVideoUrl);
     }
     const url = URL.createObjectURL(file);
@@ -83,13 +119,47 @@ export const App: React.FC = () => {
   };
 
   const handleSelectTrailer = (trailer: TrailerVideo) => {
-    if (customVideoUrl) {
-      URL.revokeObjectURL(customVideoUrl);
+    setActiveTrailer(trailer);
+    setIsPlaying(true);
+    if (trailer.videoUrl) {
+      setCustomVideoUrl(trailer.videoUrl);
+      setCustomVideoName(trailer.title);
+    } else {
       setCustomVideoUrl(null);
       setCustomVideoName(null);
     }
-    setActiveTrailer(trailer);
+    try {
+      localStorage.setItem('sjcinemas_active_trailer_id', trailer.id);
+      if (trailer.videoUrl) {
+        localStorage.setItem('sjcinemas_custom_video_url', trailer.videoUrl);
+        localStorage.setItem('sjcinemas_custom_video_name', trailer.title);
+      } else {
+        localStorage.removeItem('sjcinemas_custom_video_url');
+        localStorage.removeItem('sjcinemas_custom_video_name');
+      }
+    } catch {}
+  };
+
+  const handleUpdateTrailers = (newTrailers: TrailerVideo[]) => {
+    setTrailers(newTrailers);
+    try {
+      localStorage.setItem('sjcinemas_custom_trailers', JSON.stringify(newTrailers));
+    } catch {}
+  };
+
+  const handleSetCustomVideo = (url: string | null, name: string | null) => {
+    setCustomVideoUrl(url);
+    setCustomVideoName(name);
     setIsPlaying(true);
+    try {
+      if (url) {
+        localStorage.setItem('sjcinemas_custom_video_url', url);
+        if (name) localStorage.setItem('sjcinemas_custom_video_name', name);
+      } else {
+        localStorage.removeItem('sjcinemas_custom_video_url');
+        localStorage.removeItem('sjcinemas_custom_video_name');
+      }
+    } catch {}
   };
 
   // Compute scores for every seat in the hall
@@ -170,6 +240,16 @@ export const App: React.FC = () => {
 
         {/* Right Header Badges */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Theatre Owner Admin Panel */}
+          <button
+            onClick={() => setIsAdminOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-bold text-amber-300 transition cursor-pointer backdrop-blur-md shadow-lg shadow-amber-950/40"
+            title="Theatre Owner Control Panel: Switch trailer, upload MP4, edit movie banner"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Owner Admin</span>
+          </button>
+
           {/* Replay Cinematic Walk-in Entry */}
           <button
             onClick={() => handleEnterAuditorium(selectedSeatId)}
@@ -226,6 +306,15 @@ export const App: React.FC = () => {
           isEcoMode={isEcoMode}
         />
 
+        {/* Dynamic Seat Information HUD with Direct BookMyShow Action */}
+        {viewMode === 'SEAT' && !isWalkingIn && (
+          <SeatHUD
+            seat={selectedSeat}
+            score={currentScore}
+            onQuickCompare={handleSelectSeat}
+          />
+        )}
+
         {/* Floating Control Toolbar */}
         <ControlToolbar
           lightsUp={lightsUp}
@@ -275,6 +364,10 @@ export const App: React.FC = () => {
         <CinemaEntryOverlay
           onEnter={handleEnterAuditorium}
           bestSeatId={bestSeatId}
+          trailers={trailers}
+          activeTrailer={activeTrailer}
+          onSelectTrailer={handleSelectTrailer}
+          onOpenAdmin={() => setIsAdminOpen(true)}
         />
       )}
 
@@ -282,6 +375,20 @@ export const App: React.FC = () => {
       <AuditoriumInfoModal
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}
+      />
+
+      {/* Theatre Owner Admin & Trailer Control Modal */}
+      <AdminPanelModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+        trailers={trailers}
+        activeTrailer={activeTrailer}
+        onSelectTrailer={handleSelectTrailer}
+        onUpdateTrailers={handleUpdateTrailers}
+        customVideoUrl={customVideoUrl}
+        customVideoName={customVideoName}
+        onSetCustomVideo={handleSetCustomVideo}
+        onLoadVideoFile={handleLoadVideoFile}
       />
     </div>
   );

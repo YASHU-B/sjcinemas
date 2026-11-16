@@ -78,5 +78,7 @@ export interface TrailerVideo {
   videoUrl?: string; // HTML5 video or canvas simulation
   audioTone: string;
   colorPalette: [string, string, string]; // Dynamic ambient light colors
+  showtimes?: string;
+  status?: 'NOW_SHOWING' | 'ADVANCE_BOOKING' | 'COMING_SOON';
 }
 

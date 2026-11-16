@@ -1,25 +1,28 @@
 import React, { useState } from 'react';
 import { Seat, SeatScore } from '../types/theater';
 import { getTierBadgeInfo } from '../utils/cinemaMath';
-import { Sparkles, Eye, Volume2, Compass, ChevronDown, ChevronUp, Award } from 'lucide-react';
+import { Sparkles, Eye, Volume2, Compass, ChevronDown, ChevronUp, Award, Ticket, ExternalLink } from 'lucide-react';
 
 interface SeatHUDProps {
   seat: Seat;
   score: SeatScore;
   onQuickCompare: (seatId: string) => void;
+  bookingUrl?: string;
 }
 
 export const SeatHUD: React.FC<SeatHUDProps> = ({
   seat,
   score,
-  onQuickCompare
+  onQuickCompare,
+  bookingUrl
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const badgeInfo = getTierBadgeInfo(score.tierName);
+  const targetBookingUrl = bookingUrl || `https://in.bookmyshow.com/buytickets/sj-cinemas-sreenivasa-ac-4k-dolby-atmos-nagari/cinema-nag-SJSN-MT/`;
 
   return (
     <div className="absolute top-16 left-4 sm:left-6 z-20 max-w-xs sm:max-w-sm w-full transition-all duration-300 pointer-events-auto">
-      <div className="bg-[#0b0e1a]/90 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-3.5 text-white">
+      <div className="bg-[#0b0e1a]/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-3.5 text-white">
         {/* Header Bar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -31,6 +34,9 @@ export const SeatHUD: React.FC<SeatHUDProps> = ({
                 <h4 className="font-extrabold text-xs text-white">Seat {seat.label}</h4>
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/90 border border-white/10">
                   {seat.tier} Class
+                </span>
+                <span className="text-[10px] font-extrabold text-amber-400">
+                  ₹{seat.price || 150}
                 </span>
               </div>
               <p className="text-[10px] text-white/50">{seat.rowLabel} Row • SJ Cinemas Nagari</p>
@@ -63,6 +69,29 @@ export const SeatHUD: React.FC<SeatHUDProps> = ({
               <span className="text-[9px] text-white/50 block line-clamp-1">{badgeInfo.desc}</span>
             </div>
           </div>
+        </div>
+
+        {/* Direct BookMyShow Booking Action Button (High-converting CTA for theater owner) */}
+        <div className="mt-2.5">
+          <a
+            href={targetBookingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 via-red-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white font-extrabold text-xs shadow-lg shadow-red-950/60 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] border border-red-400/40 group cursor-pointer"
+            title={`Open BookMyShow to book Seat ${seat.label}`}
+          >
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-white group-hover:rotate-12 transition-transform" />
+              <div className="text-left">
+                <span className="block text-[11px] leading-tight font-black tracking-wide">BOOK ON BOOKMYSHOW</span>
+                <span className="block text-[9px] text-white/80 font-normal">Seat {seat.label} • ₹{seat.price || 150}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-lg text-[10px] font-bold border border-white/15">
+              <span>Book</span>
+              <ExternalLink className="w-3 h-3 text-white/90 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </div>
+          </a>
         </div>
 
         {!collapsed && (
