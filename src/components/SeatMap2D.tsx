@@ -75,17 +75,39 @@ export const SeatMap2D: React.FC<SeatMap2DProps> = ({
           {displayRows.map(rowPlan => {
             const isSweetSpotRow = rowPlan.rowLabel === 'G' || rowPlan.rowLabel === 'H' || rowPlan.rowLabel === 'J';
             const isAisleBreak = rowPlan.rowLabel === 'L'; // Cross-aisle gap above Row L
+            const isRowA = rowPlan.rowLabel === 'A';
 
             return (
               <React.Fragment key={rowPlan.rowLabel}>
+                {/* Rear Concourse Entrances above Row A (Aligned with 12-13 and 4-5 gaps) */}
+                {isRowA && (
+                  <div className="w-full mb-2 flex items-center justify-between px-2 sm:px-4">
+                    <span className="text-[8px] font-bold text-emerald-300 flex items-center gap-1 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-500/40 shadow-sm">
+                      🚪 Entrance (Aisle 12-13)
+                    </span>
+                    <span className="text-[7px] uppercase tracking-widest font-bold text-white/30 hidden xs:inline">
+                      Rear Entry Foyer
+                    </span>
+                    <span className="text-[8px] font-bold text-emerald-300 flex items-center gap-1 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-500/40 shadow-sm">
+                      🚪 Entrance (Aisle 4-5)
+                    </span>
+                  </div>
+                )}
+
                 {/* Cross Aisle / Walkway Break between Row K and Row L */}
                 {isAisleBreak && (
-                  <div className="w-full my-2 flex items-center justify-center gap-2">
-                    <div className="h-px bg-white/10 flex-1"></div>
-                    <span className="text-[8px] uppercase tracking-widest font-bold text-white/30">
-                      Cross Aisle Walkway
+                  <div className="w-full my-2 flex items-center justify-between px-2 gap-2">
+                    <span className="text-[8px] font-bold text-rose-300 flex items-center gap-1 bg-rose-950/70 px-2 py-0.5 rounded border border-rose-500/40 shadow-sm">
+                      🚺 Women's Washroom
                     </span>
                     <div className="h-px bg-white/10 flex-1"></div>
+                    <span className="text-[7px] uppercase tracking-widest font-bold text-white/30">
+                      Walkway
+                    </span>
+                    <div className="h-px bg-white/10 flex-1"></div>
+                    <span className="text-[8px] font-bold text-sky-300 flex items-center gap-1 bg-sky-950/70 px-2 py-0.5 rounded border border-sky-500/40 shadow-sm">
+                      🚹 Men's Washroom
+                    </span>
                   </div>
                 )}
 
@@ -288,7 +310,7 @@ export const SeatMap2D: React.FC<SeatMap2DProps> = ({
         </div>
 
         <a
-          href="https://in.bookmyshow.com/buytickets/sj-cinemas-sreenivasa-ac-4k-dolby-atmos-nagari/cinema-nag-SJSN-MT/"
+          href="https://in.bookmyshow.com/cinemas/nagari/sj-cinemas-sreenivasa-a-c-4k-dolby-atmos-nagari/buytickets/SJCN/20261116"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-600 text-white font-extrabold text-xs shadow-lg shadow-red-950/60 transition cursor-pointer border border-red-400/40"

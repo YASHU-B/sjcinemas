@@ -73,6 +73,9 @@ export interface TrailerVideo {
   duration: string;
   aspectRatio: number;
   thumbnail: string;
+  posterUrl?: string;
+  rating?: string;
+  bookingUrl?: string;
   youtubeId?: string;
   language?: string;
   videoUrl?: string; // HTML5 video or canvas simulation

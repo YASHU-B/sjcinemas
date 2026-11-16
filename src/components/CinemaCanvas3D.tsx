@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Seat, ScreenSpec, HallDimensions, AudioSpeaker, TrailerVideo, SeatScore } from '../types/theater';
+import { EXACT_SEAT_PLAN } from '../data/sjCinemasData';
 
 interface CinemaCanvas3DProps {
   hall: HallDimensions;
@@ -12,6 +13,7 @@ interface CinemaCanvas3DProps {
   onSelectSeat: (seatId: string) => void;
   activeTrailer: TrailerVideo;
   lightsUp: boolean;
+  rowLightsOn?: boolean;
   viewMode: 'SEAT' | 'OVERVIEW' | 'HEATMAP';
   showSpeakers: boolean;
   isPlaying: boolean;
@@ -35,6 +37,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
   onSelectSeat,
   activeTrailer,
   lightsUp,
+  rowLightsOn = true,
   viewMode,
   showSpeakers,
   isPlaying,
@@ -75,6 +78,9 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
   // Live props refs to avoid stale closures inside the requestAnimationFrame loop
   const lightsUpRef = useRef(lightsUp);
   useEffect(() => { lightsUpRef.current = lightsUp; }, [lightsUp]);
+
+  const rowLightsOnRef = useRef(rowLightsOn);
+  useEffect(() => { rowLightsOnRef.current = rowLightsOn; }, [rowLightsOn]);
 
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
@@ -305,12 +311,23 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     if (!video) return;
 
     let isCancelled = false;
-    const videoSource = customVideoUrl || activeTrailer.videoUrl || `/trailers/${activeTrailer.id}.mp4`;
+    const videoSource = customVideoUrl || activeTrailer?.videoUrl || null;
+
+    if (!videoSource) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      setHasRawVideo(false);
+      return;
+    }
 
     const handleLoaded = () => {
       if (isCancelled) return;
       setHasRawVideo(true);
       if (isPlaying) {
+        if (video.currentTime < 2.0 && videoSource.includes('leo.mp4')) {
+          video.currentTime = 2.4;
+        }
         video.muted = isMuted;
         video.volume = volume;
         video.play().catch(() => {
@@ -350,6 +367,9 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     const video = videoElementRef.current;
     if (!video) return;
     if (isPlaying) {
+      if (video.currentTime < 2.0 && video.src.includes('leo.mp4')) {
+        video.currentTime = 2.4;
+      }
       video.play().catch(() => {
         video.muted = true;
         video.play().catch(() => {});
@@ -473,14 +493,14 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Stadium Risers with warm-amber step LED lights (Matching all 20 rows from A to T)
+    // Stadium Risers with warm-amber step LED lights (Matching all 20 rows from A to T - Wall to Wall with Zero Gap)
     const riserGroup = new THREE.Group();
     for (let r = 0; r < 20; r++) {
       const riserHeight = 0.5 + r * 0.28;
       const riserDepth = 1.25;
       const isUpperBlock = r >= 9;
       const riserZ = 5.6 + r * 1.12 + (isUpperBlock ? 1.5 : 0);
-      const boxGeo = new THREE.BoxGeometry(hall.width - 0.8, riserHeight, riserDepth);
+      const boxGeo = new THREE.BoxGeometry(hall.width - 0.04, riserHeight, riserDepth);
       const boxMat = new THREE.MeshStandardMaterial({
         map: carpetTex || undefined,
         color: 0x1a1d2a,
@@ -491,27 +511,81 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       riserBox.receiveShadow = true;
       riserGroup.add(riserBox);
 
-      // Warm Amber Step Riser LED Strip (matching SJ Cinemas Nagari aisle step lights)
-      const stepLightGeo = new THREE.BoxGeometry(hall.width - 1.2, 0.04, 0.05);
+      // Warm Amber Step Riser LED Strip (matching SJ Cinemas Nagari aisle step lights - flush wall-to-wall)
+      const stepLightGeo = new THREE.BoxGeometry(hall.width - 0.04, 0.04, 0.05);
       const stepLightMat = new THREE.MeshBasicMaterial({ color: 0xffb347 });
       const stepLight = new THREE.Mesh(stepLightGeo, stepLightMat);
       stepLight.position.set(0, riserHeight + 0.02, riserZ - riserDepth / 2 + 0.03);
       riserGroup.add(stepLight);
     }
 
-    // Cross Aisle Walkway between Row L and Row K
+    // Cross Aisle Walkway between Row L and Row K (Spans flush wall-to-wall)
     const walkwayHeight = 0.5 + 8 * 0.28;
+    const walkwayZ = 5.6 + 8 * 1.12 + 1.3;
     const walkwayBox = new THREE.Mesh(
-      new THREE.BoxGeometry(hall.width - 0.8, walkwayHeight, 1.4),
+      new THREE.BoxGeometry(hall.width - 0.04, walkwayHeight, 1.4),
       new THREE.MeshStandardMaterial({
         map: carpetTex || undefined,
         color: 0x161824,
         roughness: 0.92
       })
     );
-    walkwayBox.position.set(0, walkwayHeight / 2, 5.6 + 8 * 1.12 + 1.3);
+    walkwayBox.position.set(0, walkwayHeight / 2, walkwayZ);
     riserGroup.add(walkwayBox);
+
+    // Rear Concourse Walkway behind Row A (Spans flush wall-to-wall connecting the two entrance doors)
+    const rearWalkwayHeight = 0.5 + 19 * 0.28;
+    const rowAEnd = 5.6 + 19 * 1.12 + 1.5 + 1.25 / 2;
+    const rearWalkwayDepth = Math.max(1.8, hall.depth - rowAEnd);
+    const rearWalkwayZ = hall.depth - rearWalkwayDepth / 2;
+    const rearWalkwayBox = new THREE.Mesh(
+      new THREE.BoxGeometry(hall.width - 0.04, rearWalkwayHeight, rearWalkwayDepth),
+      new THREE.MeshStandardMaterial({
+        map: carpetTex || undefined,
+        color: 0x161824,
+        roughness: 0.92
+      })
+    );
+    rearWalkwayBox.position.set(0, rearWalkwayHeight / 2, rearWalkwayZ);
+    riserGroup.add(rearWalkwayBox);
     scene.add(riserGroup);
+
+    // Helper to generate crisp illuminated canvas sign textures
+    const createDoorSignTex = (title: string, subtitle: string, icon: string, accentColor: string) => {
+      const cvs = document.createElement('canvas');
+      cvs.width = 512;
+      cvs.height = 200;
+      const ctx = cvs.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#080a14';
+        ctx.fillRect(0, 0, 512, 200);
+
+        // Outer glow frame
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 8;
+        ctx.strokeRect(8, 8, 496, 184);
+
+        // Icon
+        ctx.font = 'bold 52px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = accentColor;
+        ctx.fillText(icon, 70, 100);
+
+        // Title text
+        ctx.font = 'bold 44px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(title, 290, 75);
+
+        // Subtitle text
+        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = accentColor;
+        ctx.fillText(subtitle, 290, 135);
+      }
+      const tex = new THREE.CanvasTexture(cvs);
+      tex.needsUpdate = true;
+      return tex;
+    };
 
     // 6. Acoustic Walls
     const wallMat = new THREE.MeshStandardMaterial({
@@ -544,10 +618,10 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     frontWall.position.set(0, hall.height / 2, 0.2);
     scene.add(frontWall);
 
-    // Low Stage Skirt below the screen
+    // Low Stage Skirt below the screen (Flush to side walls)
     const stageHeight = 0.85;
     const stageMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(hall.width - 2, stageHeight, 2.0),
+      new THREE.BoxGeometry(hall.width - 0.04, stageHeight, 2.0),
       new THREE.MeshStandardMaterial({ color: 0x0d0f17, roughness: 0.95 })
     );
     stageMesh.position.set(0, stageHeight / 2, 1.8);
@@ -556,8 +630,8 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     // 7. Architectural Side Wall Sconces & Door Portals (Exact match to real SJ Cinemas photo)
     const wallLights: THREE.PointLight[] = [];
 
-    // Circular Warm-Amber Sconces with Diagonal Black Accent Bars
-    const sconceZPositions = [6.5, 11.5, 16.5, 21.5, 26.5];
+    // Circular Warm-Amber Sconces with Diagonal Black Accent Bars (Spaced to avoid K-L washroom doors)
+    const sconceZPositions = [6.2, 10.8, 20.0, 25.0];
     const sconceBaseGeo = new THREE.CylinderGeometry(0.20, 0.20, 0.03, 32);
     sconceBaseGeo.rotateZ(Math.PI / 2);
     const sconceBaseMat = new THREE.MeshStandardMaterial({ color: 0x090b12, metalness: 0.9, roughness: 0.25 });
@@ -592,36 +666,70 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       });
     });
 
-    // Side Entrance / Exit Doors with Warm-Amber Illuminated Contour Outlines (Matching photo at z = 9.5)
-    [-hall.width / 2 + 0.2, hall.width / 2 - 0.2].forEach((xPos, sideIdx) => {
-      const sign = sideIdx === 0 ? 1 : -1;
-      const doorZ = 9.5;
+    // Washroom Doors on Both Side Walls Exactly Between Rows K and L
+    // Left side: Women's Washroom / Restroom
+    // Right side: Men's Washroom / Restroom
+    const washroomZ = walkwayZ;
+    const washroomDoorH = 2.6;
+    const washroomDoorW = 1.35;
+    const washroomFloorY = walkwayHeight;
 
-      // Dark Door Inset
+    [-hall.width / 2 + 0.18, hall.width / 2 - 0.18].forEach((xPos, sideIdx) => {
+      const isLeft = sideIdx === 0;
+      const sign = isLeft ? 1 : -1;
+
+      // Dark Door Inset with panel relief
       const doorMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 2.7, 1.4),
-        new THREE.MeshStandardMaterial({ color: 0x05060b, roughness: 0.95 })
+        new THREE.BoxGeometry(0.06, washroomDoorH, washroomDoorW),
+        new THREE.MeshStandardMaterial({ color: 0x070912, roughness: 0.92 })
       );
-      doorMesh.position.set(xPos, 2.7 / 2 + 0.4, doorZ);
+      doorMesh.position.set(xPos, washroomFloorY + washroomDoorH / 2, washroomZ);
       scene.add(doorMesh);
 
-      // Glowing Warm-Amber Contour Frame (Top and side trims)
+      // Handle / Push Plate
+      const handleMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.25, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0xd4d4d8, metalness: 0.9, roughness: 0.2 })
+      );
+      handleMesh.position.set(xPos + sign * 0.02, washroomFloorY + 1.05, washroomZ + sign * 0.45);
+      scene.add(handleMesh);
+
+      // Glowing Warm-Amber Contour Frame (Top header & side jambs)
       const contourMat = new THREE.MeshBasicMaterial({ color: 0xffdf88 });
 
       // Top horizontal header trim
-      const topTrim = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.06, 1.48), contourMat);
-      topTrim.position.set(xPos + sign * 0.01, 2.7 + 0.4, doorZ);
+      const topTrim = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, washroomDoorW + 0.08), contourMat);
+      topTrim.position.set(xPos + sign * 0.01, washroomFloorY + washroomDoorH, washroomZ);
       scene.add(topTrim);
 
       // Front vertical trim leg
-      const frontTrim = new THREE.Mesh(new THREE.BoxGeometry(0.10, 2.7, 0.06), contourMat);
-      frontTrim.position.set(xPos + sign * 0.01, 2.7 / 2 + 0.4, doorZ - 0.71);
+      const frontTrim = new THREE.Mesh(new THREE.BoxGeometry(0.09, washroomDoorH, 0.06), contourMat);
+      frontTrim.position.set(xPos + sign * 0.01, washroomFloorY + washroomDoorH / 2, washroomZ - washroomDoorW / 2 - 0.01);
       scene.add(frontTrim);
 
       // Rear vertical trim leg
-      const rearTrim = new THREE.Mesh(new THREE.BoxGeometry(0.10, 2.7, 0.06), contourMat);
-      rearTrim.position.set(xPos + sign * 0.01, 2.7 / 2 + 0.4, doorZ + 0.71);
+      const rearTrim = new THREE.Mesh(new THREE.BoxGeometry(0.09, washroomDoorH, 0.06), contourMat);
+      rearTrim.position.set(xPos + sign * 0.01, washroomFloorY + washroomDoorH / 2, washroomZ + washroomDoorW / 2 + 0.01);
       scene.add(rearTrim);
+
+      // Illuminated Washroom Signage above Door
+      // Left: Women's Washroom (Pink/Warm Rose), Right: Men's Washroom (Sky Blue)
+      const signTex = isLeft
+        ? createDoorSignTex("LADIES", "WOMEN'S RESTROOM", "🚺", "#f43f5e")
+        : createDoorSignTex("GENTS", "MEN'S RESTROOM", "🚹", "#38bdf8");
+
+      const signBoxGeo = new THREE.BoxGeometry(0.05, 0.32, 0.82);
+      const signBoxMat = new THREE.MeshBasicMaterial({ color: 0x090c16 });
+      const signBox = new THREE.Mesh(signBoxGeo, signBoxMat);
+      signBox.position.set(xPos + sign * 0.01, washroomFloorY + washroomDoorH + 0.24, washroomZ);
+      scene.add(signBox);
+
+      const signFaceGeo = new THREE.PlaneGeometry(0.80, 0.30);
+      const signFaceMat = new THREE.MeshBasicMaterial({ map: signTex, transparent: true });
+      const signFace = new THREE.Mesh(signFaceGeo, signFaceMat);
+      signFace.position.set(xPos + sign * 0.04, washroomFloorY + washroomDoorH + 0.24, washroomZ);
+      signFace.rotation.y = isLeft ? Math.PI / 2 : -Math.PI / 2;
+      scene.add(signFace);
     });
 
     // 8. Top of Theatre Ceiling Architecture (Matching real SJ Cinemas Nagari photo)
@@ -927,23 +1035,81 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
 
     wallLightsRef.current = wallLights;
 
-    // Rear Corner Exit Portals with Illuminated Green EXIT Signs
-    [-hall.width / 2 + 1.2, hall.width / 2 - 1.2].forEach(exX => {
-      // Dark door frame
+    // Main Cinema Entrance Doors on Rear Wall Aligned with Aisle Gaps (Row A: 12-13 gap and 4-5 gap)
+    // Left aisle center = -3.3m, Right aisle center = +3.3m
+    const entranceAislePositions = [-3.3, 3.3];
+    const entranceFloorY = 0.5 + 19 * 0.28; // 5.82m (Row A concourse floor level)
+    const entranceDoorH = 2.5;
+    const entranceDoorW = 1.4;
+    const entranceZ = hall.depth - 0.16;
+
+    const entranceSignTex = createDoorSignTex("ENTRANCE", "AUDITORIUM 1", "🚪", "#22c55e");
+
+    entranceAislePositions.forEach(exX => {
+      // Dark Acoustic Double-Door Inset
       const exDoor = new THREE.Mesh(
-        new THREE.BoxGeometry(1.2, 2.5, 0.08),
+        new THREE.BoxGeometry(entranceDoorW, entranceDoorH, 0.06),
         new THREE.MeshStandardMaterial({ color: 0x07080f, roughness: 0.95 })
       );
-      exDoor.position.set(exX, 2.5 / 2 + 0.4, hall.depth - 0.16);
+      exDoor.position.set(exX, entranceFloorY + entranceDoorH / 2, entranceZ);
       scene.add(exDoor);
 
-      // Green illuminated exit sign above door
-      const signMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.42, 0.16, 0.06),
+      // Vertical door split line (center double door meeting stile)
+      const centerStile = new THREE.Mesh(
+        new THREE.BoxGeometry(0.02, entranceDoorH, 0.07),
+        new THREE.MeshStandardMaterial({ color: 0x181a26, metalness: 0.5, roughness: 0.5 })
+      );
+      centerStile.position.set(exX, entranceFloorY + entranceDoorH / 2, entranceZ - 0.01);
+      scene.add(centerStile);
+
+      // Panic Push Bars on both doors
+      [-0.32, 0.32].forEach(barOffsetX => {
+        const pushBar = new THREE.Mesh(
+          new THREE.BoxGeometry(0.48, 0.05, 0.05),
+          new THREE.MeshStandardMaterial({ color: 0xd4d4d8, metalness: 0.9, roughness: 0.2 })
+        );
+        pushBar.position.set(exX + barOffsetX, entranceFloorY + 1.05, entranceZ - 0.04);
+        scene.add(pushBar);
+      });
+
+      // Warm Amber Glowing Contour Trim
+      const contourMat = new THREE.MeshBasicMaterial({ color: 0xffdf88 });
+      // Top header trim
+      const topTrim = new THREE.Mesh(new THREE.BoxGeometry(entranceDoorW + 0.08, 0.06, 0.08), contourMat);
+      topTrim.position.set(exX, entranceFloorY + entranceDoorH, entranceZ - 0.02);
+      scene.add(topTrim);
+      // Left vertical trim
+      const leftTrim = new THREE.Mesh(new THREE.BoxGeometry(0.06, entranceDoorH, 0.08), contourMat);
+      leftTrim.position.set(exX - entranceDoorW / 2 - 0.01, entranceFloorY + entranceDoorH / 2, entranceZ - 0.02);
+      scene.add(leftTrim);
+      // Right vertical trim
+      const rightTrim = new THREE.Mesh(new THREE.BoxGeometry(0.06, entranceDoorH, 0.08), contourMat);
+      rightTrim.position.set(exX + entranceDoorW / 2 + 0.01, entranceFloorY + entranceDoorH / 2, entranceZ - 0.02);
+      scene.add(rightTrim);
+
+      // Illuminated Entrance Sign above door facing auditorium (rotation Y = Math.PI)
+      const signBox = new THREE.Mesh(
+        new THREE.BoxGeometry(0.82, 0.30, 0.06),
+        new THREE.MeshBasicMaterial({ color: 0x090c16 })
+      );
+      signBox.position.set(exX, entranceFloorY + entranceDoorH + 0.24, entranceZ - 0.02);
+      scene.add(signBox);
+
+      const signFace = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.80, 0.28),
+        new THREE.MeshBasicMaterial({ map: entranceSignTex, transparent: true })
+      );
+      signFace.position.set(exX, entranceFloorY + entranceDoorH + 0.24, entranceZ - 0.055);
+      signFace.rotation.y = Math.PI; // Face forward into the auditorium
+      scene.add(signFace);
+
+      // Floor threshold step light inviting viewers in
+      const thresholdLight = new THREE.Mesh(
+        new THREE.BoxGeometry(entranceDoorW, 0.03, 0.10),
         new THREE.MeshBasicMaterial({ color: 0x22c55e })
       );
-      signMesh.position.set(exX, 2.5 + 0.55, hall.depth - 0.19);
-      scene.add(signMesh);
+      thresholdLight.position.set(exX, entranceFloorY + 0.015, entranceZ - 0.05);
+      scene.add(thresholdLight);
     });
 
     // Realistic Barco 4K laser lens spotlight targeting the screen
@@ -1033,6 +1199,148 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     const highlightRing = new THREE.Mesh(ringGeo, ringMat);
     scene.add(highlightRing);
     seatHighlightRingRef.current = highlightRing;
+
+    // 11B. Seat Side Row Indicator Boxes with LED Light Function (Off/On)
+    // Small illuminated box mounted on the side of the starting seat and aisle ends
+    // indicating starting seat and block ranges (e.g. "A 1-4", "A 5-12", "A 13-16")
+    const seatLookup = new Map<string, Seat>();
+    seats.forEach(s => seatLookup.set(s.id, s));
+
+    const rowPlateTexMap = new Map<string, THREE.CanvasTexture>();
+    const getRowPlateTexture = (rowLabel: string, seatRange: string) => {
+      const key = `${rowLabel}_${seatRange}`;
+      if (rowPlateTexMap.has(key)) return rowPlateTexMap.get(key)!;
+
+      const cvs = document.createElement('canvas');
+      cvs.width = 256;
+      cvs.height = 144;
+      const ctx = cvs.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#060810';
+        ctx.fillRect(0, 0, 256, 144);
+
+        // Subtle outer border
+        ctx.strokeStyle = '#272b3b';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(3, 3, 250, 138);
+
+        // Inner glowing panel recess
+        ctx.fillStyle = '#0e1222';
+        ctx.fillRect(10, 10, 236, 124);
+
+        // Row Letter (Bold prominent gold amber)
+        ctx.fillStyle = '#ffbe55';
+        ctx.font = 'bold 52px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(rowLabel, 128, 48);
+
+        // Range (e.g. "1 - 4" or "1-4")
+        ctx.font = 'bold 26px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText(seatRange, 128, 102);
+      }
+      const tex = new THREE.CanvasTexture(cvs);
+      tex.needsUpdate = true;
+      rowPlateTexMap.set(key, tex);
+      return tex;
+    };
+
+    const rowPlateFaceMaterials = new Map<string, THREE.MeshBasicMaterial>();
+    const getRowPlateFaceMat = (rowLabel: string, seatRange: string) => {
+      const key = `${rowLabel}_${seatRange}`;
+      if (rowPlateFaceMaterials.has(key)) return rowPlateFaceMaterials.get(key)!;
+      const tex = getRowPlateTexture(rowLabel, seatRange);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 1.0 });
+      rowPlateFaceMaterials.set(key, mat);
+      return mat;
+    };
+
+    const boxCasingGeo = new THREE.BoxGeometry(0.18, 0.12, 0.024);
+    const boxCasingMat = new THREE.MeshStandardMaterial({ color: 0x090b14, metalness: 0.85, roughness: 0.3 });
+    const plateFaceGeo = new THREE.PlaneGeometry(0.16, 0.10);
+    const slitGeo = new THREE.BoxGeometry(0.12, 0.012, 0.02);
+    const rowLightSlitMat = new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 1.0 });
+
+    const puddleGeo = new THREE.CircleGeometry(0.22, 16);
+    puddleGeo.rotateX(-Math.PI / 2);
+    const rowLightPuddleMat = new THREE.MeshBasicMaterial({
+      color: 0xff9900,
+      transparent: true,
+      opacity: 0.30,
+      blending: THREE.AdditiveBlending
+    });
+
+    const rowIndicatorGroup = new THREE.Group();
+
+    EXACT_SEAT_PLAN.forEach(rowPlan => {
+      const row = rowPlan.rowLabel;
+      const rightRange = `${rowPlan.rightSeats[0]} - ${rowPlan.rightSeats[rowPlan.rightSeats.length - 1]}`;
+      const centerRange = `${rowPlan.centerSeats[0]} - ${rowPlan.centerSeats[rowPlan.centerSeats.length - 1]}`;
+      const leftRange = `${rowPlan.leftSeats[0]} - ${rowPlan.leftSeats[rowPlan.leftSeats.length - 1]}`;
+
+      // Mounting definitions: [seatId, side ('right' | 'left'), rangeText]
+      const mountDefs: [string, 'right' | 'left', string][] = [
+        // Right Block: Outer armrest at starting seat (Seat 1)
+        [`${row}${rowPlan.rightSeats[0]}`, 'right', rightRange],
+        // Right Block: Aisle armrest
+        [`${row}${rowPlan.rightSeats[rowPlan.rightSeats.length - 1]}`, 'left', rightRange],
+        // Center Block: Right aisle armrest
+        [`${row}${rowPlan.centerSeats[0]}`, 'right', centerRange],
+        // Center Block: Left aisle armrest
+        [`${row}${rowPlan.centerSeats[rowPlan.centerSeats.length - 1]}`, 'left', centerRange],
+        // Left Block: Left aisle armrest
+        [`${row}${rowPlan.leftSeats[0]}`, 'right', leftRange],
+        // Left Block: Outer armrest
+        [`${row}${rowPlan.leftSeats[rowPlan.leftSeats.length - 1]}`, 'left', leftRange]
+      ];
+
+      mountDefs.forEach(([seatId, side, rangeText]) => {
+        const seat = seatLookup.get(seatId);
+        if (!seat) return;
+
+        const sx = seat.position[0];
+        const sy = seat.position[1];
+        const sz = seat.position[2];
+        const facing = seat.facing;
+
+        // Calculate offset position on the armrest
+        const isRight = side === 'right';
+        const sign = isRight ? 1 : -1;
+        const bx = sx + sign * 0.30 * Math.cos(facing);
+        const bz = sz + sign * 0.30 * Math.sin(facing);
+        const by = sy + 0.36;
+        const rotY = facing + sign * (Math.PI / 2);
+
+        const group = new THREE.Group();
+        group.position.set(bx, by, bz);
+        group.rotation.y = rotY;
+
+        // Metallic casing box
+        const casing = new THREE.Mesh(boxCasingGeo, boxCasingMat);
+        group.add(casing);
+
+        // Illuminated face plate with row & seat numbers
+        const faceMat = getRowPlateFaceMat(row, rangeText);
+        const face = new THREE.Mesh(plateFaceGeo, faceMat);
+        face.position.set(0, 0, 0.013);
+        group.add(face);
+
+        // Downlight LED slit on bottom of box
+        const slit = new THREE.Mesh(slitGeo, rowLightSlitMat);
+        slit.position.set(0, -0.06, 0);
+        group.add(slit);
+
+        rowIndicatorGroup.add(group);
+
+        // Floor puddle on carpet
+        const puddle = new THREE.Mesh(puddleGeo, rowLightPuddleMat);
+        puddle.position.set(bx, sy + 0.01, bz);
+        rowIndicatorGroup.add(puddle);
+      });
+    });
+
+    scene.add(rowIndicatorGroup);
 
     // 12. 3D Dolby Atmos Speakers
     const speakerGroup = new THREE.Group();
@@ -1196,6 +1504,24 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
         );
       }
 
+      // Update Row Indicator Lights function (Off and On)
+      const isRowLightsOn = rowLightsOnRef.current;
+      const targetPlateOpacity = isRowLightsOn ? 1.0 : 0.20;
+      const targetSlitOpacity = isRowLightsOn ? 1.0 : 0.0;
+      const targetPuddleOpacity = isRowLightsOn ? 0.30 : 0.0;
+      const plateColorHex = isRowLightsOn ? 0xffffff : 0x555555;
+      const slitColorHex = isRowLightsOn ? 0xffb347 : 0x111111;
+
+      if (Math.abs(rowLightSlitMat.opacity - targetSlitOpacity) > 0.005) {
+        rowLightSlitMat.opacity = THREE.MathUtils.lerp(rowLightSlitMat.opacity, targetSlitOpacity, 0.12);
+        rowLightPuddleMat.opacity = THREE.MathUtils.lerp(rowLightPuddleMat.opacity, targetPuddleOpacity, 0.12);
+        rowLightSlitMat.color.setHex(slitColorHex);
+        rowPlateFaceMaterials.forEach(mat => {
+          mat.opacity = THREE.MathUtils.lerp(mat.opacity, targetPlateOpacity, 0.12);
+          mat.color.setHex(plateColorHex);
+        });
+      }
+
       renderer.render(scene, camera);
     };
 
@@ -1293,42 +1619,49 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
 
     const w = canvas.width;
     const h = canvas.height;
-    const movie = activeTrailer.id;
-    const [c1, c2, c3] = activeTrailer.colorPalette;
+    const movie = activeTrailer?.id || 'leo';
+    const [c1, c2, c3] = (activeTrailer?.colorPalette && activeTrailer.colorPalette.length >= 3)
+      ? activeTrailer.colorPalette
+      : ['#e11d2e', '#f97316', '#450a0a'];
     const video = videoElementRef.current;
 
-    // 1. Check if raw video from public/trailers/ or user drop is playing
-    if (video && (hasRawVideo || video.readyState >= 1) && !video.error) {
-      if (video.videoWidth > 0) {
-        // Letterbox Bars Background
-        ctx.fillStyle = '#020306';
-        ctx.fillRect(0, 0, w, h);
+    // 1. Check if raw video is actively playing frames with valid content
+    const isVideoPlaying =
+      video &&
+      !video.paused &&
+      video.currentTime > 0.08 &&
+      (hasRawVideo || video.readyState >= 2) &&
+      !video.error;
 
-        // Draw raw video preserving native aspect ratio
-        const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
-        const canvasAspect = w / h;
-        let drawW = w;
-        let drawH = h;
-        let offsetX = 0;
-        let offsetY = 0;
+    if (isVideoPlaying && video.videoWidth > 0) {
+      // Letterbox Bars Background
+      ctx.fillStyle = '#020306';
+      ctx.fillRect(0, 0, w, h);
 
-        if (videoAspect > canvasAspect) {
-          drawH = w / videoAspect;
-          offsetY = (h - drawH) / 2;
-        } else {
-          drawW = h * videoAspect;
-          offsetX = (w - drawW) / 2;
-        }
+      // Draw raw video preserving native aspect ratio
+      const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
+      const canvasAspect = w / h;
+      let drawW = w;
+      let drawH = h;
+      let offsetX = 0;
+      let offsetY = 0;
 
-        ctx.drawImage(video, offsetX, offsetY, drawW, drawH);
-
-        // Real-time screen ambient bounce lighting into theater
-        if (screenLightRef.current) {
-          screenLightRef.current.color.set(c1);
-          screenLightRef.current.intensity = 3.4;
-        }
-        return;
+      if (videoAspect > canvasAspect) {
+        drawH = w / videoAspect;
+        offsetY = (h - drawH) / 2;
+      } else {
+        drawW = h * videoAspect;
+        offsetX = (w - drawW) / 2;
       }
+
+      ctx.drawImage(video, offsetX, offsetY, drawW, drawH);
+
+      // Real-time screen ambient bounce lighting into theater
+      if (screenLightRef.current) {
+        screenLightRef.current.color.set(c1);
+        screenLightRef.current.intensity = 3.4;
+      }
+      return;
     }
 
     // 2. Dynamic Cinema Trailer Reel Background (Fallback Canvas Animation)
@@ -1390,7 +1723,13 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       ctx.fillText(text, x, y);
     };
 
-    if (movie === 'leo') {
+    if (movie === 'ramayana') {
+      // RAMAYANA - Official 3D Presentation
+      drawCrispText('RAMAYANA', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#fef08a', 5);
+      drawCrispText('★ SHOWING IN 3D • TELUGU & TAMIL ★', w / 2, h / 2 + 10, 'bold 17px monospace', '#f59e0b', 3);
+      drawCrispText('NAMIT MALHOTRA • NITESH TIWARI • RANBIR KAPOOR • SAI PALLAVI • YASH', w / 2, h / 2 + 36, 'bold 13px "Plus Jakarta Sans", sans-serif', '#ffffff', 2);
+      drawCrispText('BARCO 4K RGB LASER 3D • 64-CHANNEL DOLBY ATMOS IMMERSION', w / 2, h / 2 + 58, '600 11px monospace', '#fbbf24');
+    } else if (movie === 'leo') {
       // LEO - Official Trailer
       drawCrispText('LEO', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
       drawCrispText('★ BLOODY SWEET ★', w / 2, h / 2 + 10, 'bold 18px monospace', '#ef4444', 3);

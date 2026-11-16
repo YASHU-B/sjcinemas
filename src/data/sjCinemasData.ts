@@ -10,16 +10,17 @@ export const SJ_CINEMAS_INFO = {
   projector: 'Barco Series 4 4K RGB Laser (35,000 Lumens, High Frame Rate)',
   soundSystem: 'Dolby Atmos 64-Channel Immersive Audio with QSC Amplifiers',
   screenType: 'Harkness Perlux 1.8 Gain Curved Silver Screen (48 ft)',
+  bookingUrl: 'https://in.bookmyshow.com/cinemas/nagari/sj-cinemas-sreenivasa-a-c-4k-dolby-atmos-nagari/buytickets/SJCN/20261116',
 };
 
 export const HALL_DIMENSIONS: HallDimensions = {
-  width: 18.2,
+  width: 16.0,
   depth: 32,
   height: 9.8
 };
 
 export const SCREEN_SPEC: ScreenSpec = {
-  width: 15.6,
+  width: 15.2,
   height: 6.8,
   centerHeight: 4.5,
   z: 2.2,
@@ -38,19 +39,19 @@ export const SPEAKERS: AudioSpeaker[] = [
   { id: 'spk-sub1', channel: 'LFE', name: 'Subwoofer Array L', position: [-2.8, 1.2, 1.8], powerWatts: 2400 },
   { id: 'spk-sub2', channel: 'LFE', name: 'Subwoofer Array R', position: [2.8, 1.2, 1.8], powerWatts: 2400 },
 
-  // Left Wall Surrounds
-  { id: 'spk-ls1', channel: 'Ls', name: 'Left Surround 1', position: [-8.9, 4.5, 7], powerWatts: 600 },
-  { id: 'spk-ls2', channel: 'Ls', name: 'Left Surround 2', position: [-8.9, 5.0, 12], powerWatts: 600 },
-  { id: 'spk-ls3', channel: 'Ls', name: 'Left Surround 3', position: [-8.9, 5.6, 17], powerWatts: 600 },
-  { id: 'spk-ls4', channel: 'Ls', name: 'Left Surround 4', position: [-8.9, 6.2, 22], powerWatts: 600 },
-  { id: 'spk-ls5', channel: 'Ls', name: 'Left Surround 5', position: [-8.9, 6.8, 27], powerWatts: 600 },
+  // Left Wall Surrounds (Flush mounted on acoustic side wall)
+  { id: 'spk-ls1', channel: 'Ls', name: 'Left Surround 1', position: [-7.8, 4.5, 7], powerWatts: 600 },
+  { id: 'spk-ls2', channel: 'Ls', name: 'Left Surround 2', position: [-7.8, 5.0, 12], powerWatts: 600 },
+  { id: 'spk-ls3', channel: 'Ls', name: 'Left Surround 3', position: [-7.8, 5.6, 17], powerWatts: 600 },
+  { id: 'spk-ls4', channel: 'Ls', name: 'Left Surround 4', position: [-7.8, 6.2, 22], powerWatts: 600 },
+  { id: 'spk-ls5', channel: 'Ls', name: 'Left Surround 5', position: [-7.8, 6.8, 27], powerWatts: 600 },
 
-  // Right Wall Surrounds
-  { id: 'spk-rs1', channel: 'Rs', name: 'Right Surround 1', position: [8.9, 4.5, 7], powerWatts: 600 },
-  { id: 'spk-rs2', channel: 'Rs', name: 'Right Surround 2', position: [8.9, 5.0, 12], powerWatts: 600 },
-  { id: 'spk-rs3', channel: 'Rs', name: 'Right Surround 3', position: [8.9, 5.6, 17], powerWatts: 600 },
-  { id: 'spk-rs4', channel: 'Rs', name: 'Right Surround 4', position: [8.9, 6.2, 22], powerWatts: 600 },
-  { id: 'spk-rs5', channel: 'Rs', name: 'Right Surround 5', position: [8.9, 6.8, 27], powerWatts: 600 },
+  // Right Wall Surrounds (Flush mounted on acoustic side wall)
+  { id: 'spk-rs1', channel: 'Rs', name: 'Right Surround 1', position: [7.8, 4.5, 7], powerWatts: 600 },
+  { id: 'spk-rs2', channel: 'Rs', name: 'Right Surround 2', position: [7.8, 5.0, 12], powerWatts: 600 },
+  { id: 'spk-rs3', channel: 'Rs', name: 'Right Surround 3', position: [7.8, 5.6, 17], powerWatts: 600 },
+  { id: 'spk-rs4', channel: 'Rs', name: 'Right Surround 4', position: [7.8, 6.2, 22], powerWatts: 600 },
+  { id: 'spk-rs5', channel: 'Rs', name: 'Right Surround 5', position: [7.8, 6.8, 27], powerWatts: 600 },
 
   // Rear Wall Surrounds
   { id: 'spk-rls', channel: 'Rls', name: 'Rear Left Surround', position: [-5, 7.5, 31.5], powerWatts: 600 },
@@ -86,156 +87,87 @@ export interface ExactRowPlan {
   rightSeats: number[];
 }
 
-const makeSlots = (slots: number[], startNum: number): { slots: SeatSlot[], nums: number[] } => {
-  const result: SeatSlot[] = [];
-  const nums: number[] = [];
-  slots.forEach((s, idx) => {
-    const num = startNum + idx;
-    result.push({ slot: s, seatNum: num });
-    nums.push(num);
+const makeRowPlan = (
+  rowLabel: string,
+  leftColSlots: number[],
+  centerColSlots: number[],
+  rightColSlots: number[]
+): ExactRowPlan => {
+  // Auditorium Standard: Seat 1 starts from the RIGHT wall and numbers increase from Right to Left!
+  const rSorted = [...rightColSlots].sort((a, b) => b - a); // from right wall down to right aisle
+  const cSorted = [...centerColSlots].sort((a, b) => b - a); // from right center down to left center
+  const lSorted = [...leftColSlots].sort((a, b) => b - a); // from left aisle down to left wall
+
+  let seatNumber = 1;
+
+  const rightSlotsMap: SeatSlot[] = [];
+  const rightSeats: number[] = [];
+  rSorted.forEach(slot => {
+    rightSlotsMap.push({ slot, seatNum: seatNumber });
+    rightSeats.push(seatNumber);
+    seatNumber++;
   });
-  return { slots: result, nums };
+  rightSlotsMap.sort((a, b) => a.slot - b.slot);
+
+  const centerSlotsMap: SeatSlot[] = [];
+  const centerSeats: number[] = [];
+  cSorted.forEach(slot => {
+    centerSlotsMap.push({ slot, seatNum: seatNumber });
+    centerSeats.push(seatNumber);
+    seatNumber++;
+  });
+  centerSlotsMap.sort((a, b) => a.slot - b.slot);
+
+  const leftSlotsMap: SeatSlot[] = [];
+  const leftSeats: number[] = [];
+  lSorted.forEach(slot => {
+    leftSlotsMap.push({ slot, seatNum: seatNumber });
+    leftSeats.push(seatNumber);
+    seatNumber++;
+  });
+  leftSlotsMap.sort((a, b) => a.slot - b.slot);
+
+  return {
+    rowLabel,
+    leftSlots: leftSlotsMap,
+    centerSlots: centerSlotsMap,
+    rightSlots: rightSlotsMap,
+    leftSeats,
+    centerSeats,
+    rightSeats
+  };
 };
 
-// Row definitions matching the exact BookMyShow screenshot
+// Row definitions matching the exact BookMyShow screenshot with Seat 1 on the Right
 export const EXACT_SEAT_PLAN: ExactRowPlan[] = [
-  // Front Lower Block (Rows T to L)
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'T', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'S', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'R', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'Q', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'P', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'O', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'N', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'M', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    // Row L: 5 seats on left (slots 0..4), 10 seats in center (slots 0..9), 5 seats on right (slots 0..4)
-    const l = makeSlots([0, 1, 2, 3, 4], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 6);
-    const r = makeSlots([0, 1, 2, 3, 4], 16);
-    return { rowLabel: 'L', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
+  // Front Lower Block (Rows T to M: 22 seats each)
+  ...['T', 'S', 'R', 'Q', 'P', 'O', 'N', 'M'].map(row =>
+    makeRowPlan(row, [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 1, 2, 3, 4, 5])
+  ),
+  // Row L: 5 left, 10 center, 5 right (20 seats)
+  makeRowPlan('L', [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 1, 2, 3, 4]),
 
   // Walkway / Cross-Aisle between Row L and Row K
 
-  // Upper Stadium Block (Rows K to A)
-  (() => {
-    // Row K: 4 seats left (slots 2,3,4,5), 10 seats center (slots 0..9), 4 seats right (slots 0,1,2,3)
-    const l = makeSlots([2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 5);
-    const r = makeSlots([0, 1, 2, 3], 15);
-    return { rowLabel: 'K', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'J', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'I', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'H', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'G', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'F', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'E', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    const l = makeSlots([0, 1, 2, 3, 4, 5], 1);
-    const c = makeSlots([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 7);
-    const r = makeSlots([0, 1, 2, 3, 4, 5], 17);
-    return { rowLabel: 'D', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    // Row C: 4 seats left (slots 2,3,4,5), 6 seats center (slots 2..7), 4 seats right (slots 0,1,2,3)
-    const l = makeSlots([2, 3, 4, 5], 1);
-    const c = makeSlots([2, 3, 4, 5, 6, 7], 5);
-    const r = makeSlots([0, 1, 2, 3], 11);
-    return { rowLabel: 'C', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    // Row B: 4 seats left (slots 2,3,4,5), 6 seats center (slots 2..7), 4 seats right (slots 0,1,2,3)
-    const l = makeSlots([2, 3, 4, 5], 1);
-    const c = makeSlots([2, 3, 4, 5, 6, 7], 5);
-    const r = makeSlots([0, 1, 2, 3], 11);
-    return { rowLabel: 'B', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })(),
-  (() => {
-    // Row A: 4 seats left (slots 2,3,4,5), 8 seats center (slots 1..8), 4 seats right (slots 0,1,2,3)
-    const l = makeSlots([2, 3, 4, 5], 1);
-    const c = makeSlots([1, 2, 3, 4, 5, 6, 7, 8], 5);
-    const r = makeSlots([0, 1, 2, 3], 13);
-    return { rowLabel: 'A', leftSlots: l.slots, centerSlots: c.slots, rightSlots: r.slots, leftSeats: l.nums, centerSeats: c.nums, rightSeats: r.nums };
-  })()
+  // Upper Stadium Block:
+  // Row K: 4 left, 10 center, 4 right (18 seats)
+  makeRowPlan('K', [2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 1, 2, 3]),
+  // Rows J to D: 6 left, 10 center, 6 right (22 seats each)
+  ...['J', 'I', 'H', 'G', 'F', 'E', 'D'].map(row =>
+    makeRowPlan(row, [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 1, 2, 3, 4, 5])
+  ),
+  // Rows C & B: 4 left, 6 center, 4 right (14 seats each)
+  makeRowPlan('C', [2, 3, 4, 5], [2, 3, 4, 5, 6, 7], [0, 1, 2, 3]),
+  makeRowPlan('B', [2, 3, 4, 5], [2, 3, 4, 5, 6, 7], [0, 1, 2, 3]),
+  // Row A: 4 left, 8 center, 4 right (16 seats)
+  makeRowPlan('A', [2, 3, 4, 5], [1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 2, 3])
 ];
 
 export function generateSeats(): Seat[] {
   const seats: Seat[] = [];
   const frontGap = 5.6; // Distance from screen to front row (Row T)
   const rowPitch = 1.12; // Distance between successive rows
-  const seatWidth = 0.58; // Luxury pushback cinema seat width
+  const seatWidth = 0.60; // Luxury pushback cinema seat width
   const aisleWidth = 1.15; // 1.15m gangway walkway between Left/Center and Center/Right blocks
   const rowCurveRadius = 42; // Gentle amphitheater curvature facing screen center
 
@@ -256,20 +188,20 @@ export function generateSeats(): Seat[] {
       tier = 'SILVER'; // Front rows T, S, R, Q
     }
 
-    // Function to place a block of seats matching exact column slots
+    // Function to place a block of seats matching exact column slots with zero wall gap
     const placeBlock = (seatSlots: SeatSlot[], blockType: 'LEFT' | 'CENTER' | 'RIGHT') => {
       seatSlots.forEach(({ slot, seatNum }) => {
         let posX = 0;
 
         if (blockType === 'CENTER') {
-          // Center block: 10 slots (0..9) centered around x = 0
+          // Center block: 10 slots (0..9) centered around x = 0 (spans -3.0m to +3.0m)
           posX = (slot - 4.5) * seatWidth;
         } else if (blockType === 'LEFT') {
-          // Left block: 6 slots (0..5), slot 5 is adjacent to the left walkway aisle
-          posX = -(4.5 * seatWidth + aisleWidth + (5 - slot) * seatWidth);
+          // Left block: 6 slots (0..5), slot 0 touches the left acoustic wall, slot 5 is at left aisle
+          posX = -(3.0 + aisleWidth + (5 - slot + 0.5) * seatWidth);
         } else if (blockType === 'RIGHT') {
-          // Right block: 6 slots (0..5), slot 0 is adjacent to the right walkway aisle
-          posX = +(4.5 * seatWidth + aisleWidth + slot * seatWidth);
+          // Right block: 6 slots (0..5), slot 0 is at right aisle, slot 5 touches the right acoustic wall
+          posX = +(3.0 + aisleWidth + (slot + 0.5) * seatWidth);
         }
 
         // Apply gentle row curvature so every seat faces screen center
@@ -311,6 +243,23 @@ export function generateSeats(): Seat[] {
 
 export const TRAILERS: TrailerVideo[] = [
   {
+    id: 'ramayana',
+    title: 'Ramayana (Showing in 3D • Telugu & Tamil)',
+    genre: 'Mythological Action Epic • 3D',
+    duration: '2:55',
+    aspectRatio: 2.39,
+    thumbnail: '🏹',
+    posterUrl: '/posters/ramayana.jpg',
+    rating: '9.2/10 (384K+ Votes)',
+    language: 'Telugu / Tamil (3D)',
+    bookingUrl: 'https://in.bookmyshow.com/cinemas/nagari/sj-cinemas-sreenivasa-a-c-4k-dolby-atmos-nagari/buytickets/SJCN/20261116',
+    videoUrl: '/trailers/leo.mp4',
+    audioTone: 'Epic Vedic Orchestral Chants & 64-Channel Atmos Immersion',
+    colorPalette: ['#f59e0b', '#dc2626', '#451a03'],
+    status: 'NOW_SHOWING',
+    showtimes: '11:00 AM • 2:30 PM • 6:30 PM • 10:00 PM'
+  },
+  {
     id: 'leo',
     title: 'Leo (Thalapathy Vijay • Lokesh Kanagaraj)',
     genre: 'Action Thriller • LCU',
@@ -319,6 +268,7 @@ export const TRAILERS: TrailerVideo[] = [
     thumbnail: '🦁',
     language: 'Tamil',
     youtubeId: 'Po3jStA673E',
+    bookingUrl: SJ_CINEMAS_INFO.bookingUrl,
     videoUrl: '/trailers/leo.mp4',
     audioTone: 'Anirudh "Badass" Bass Drops & 64-Channel Gunfire',
     colorPalette: ['#e11d2e', '#f97316', '#450a0a'],
@@ -334,7 +284,7 @@ export const TRAILERS: TrailerVideo[] = [
     thumbnail: '🔥',
     language: 'Telugu / Tamil',
     youtubeId: '1kVK0KEkS18',
-    videoUrl: '/trailers/pushpa2.mp4',
+    bookingUrl: SJ_CINEMAS_INFO.bookingUrl,
     audioTone: 'DSP Thumping Tribal Beats & Dolby Atmos Bass',
     colorPalette: ['#dc2626', '#ea580c', '#7f1d1d'],
     status: 'NOW_SHOWING',
@@ -349,7 +299,7 @@ export const TRAILERS: TrailerVideo[] = [
     thumbnail: '👑',
     language: 'Tamil',
     youtubeId: 'OXHTlMPbX7o',
-    videoUrl: '/trailers/coolie.mp4',
+    bookingUrl: SJ_CINEMAS_INFO.bookingUrl,
     audioTone: 'Thalaivar Gold Chains & Anirudh "Powerhouse" Atmos',
     colorPalette: ['#eab308', '#ca8a04', '#422006'],
     status: 'COMING_SOON',
@@ -364,7 +314,7 @@ export const TRAILERS: TrailerVideo[] = [
     thumbnail: '🎖️',
     language: 'Tamil',
     youtubeId: 'hylIXfZeB4c',
-    videoUrl: '/trailers/amaran.mp4',
+    bookingUrl: SJ_CINEMAS_INFO.bookingUrl,
     audioTone: 'GV Prakash Heavy Artillery & Spatial Bullet Whistles',
     colorPalette: ['#15803d', '#166534', '#052e16'],
     status: 'NOW_SHOWING',
@@ -379,7 +329,7 @@ export const TRAILERS: TrailerVideo[] = [
     thumbnail: '🎯',
     language: 'Tamil',
     youtubeId: 'jxCRlebiebw',
-    videoUrl: '/trailers/goat.mp4',
+    bookingUrl: SJ_CINEMAS_INFO.bookingUrl,
     audioTone: 'Yuvan High-Octane Car Chases & Spatial Explosions',
     colorPalette: ['#0284c7', '#2563eb', '#0f172a'],
     status: 'NOW_SHOWING',
@@ -394,7 +344,7 @@ export const TRAILERS: TrailerVideo[] = [
     thumbnail: '🦅',
     language: 'Tamil',
     youtubeId: 'OKBMCL-frPU',
-    videoUrl: '/trailers/vikram.mp4',
+    bookingUrl: SJ_CINEMAS_INFO.bookingUrl,
     audioTone: 'Anirudh Roaring Synth Horns & Heavy Machine Guns',
     colorPalette: ['#dc2626', '#991b1b', '#18181b'],
     status: 'NOW_SHOWING',
@@ -409,7 +359,7 @@ export const TRAILERS: TrailerVideo[] = [
     thumbnail: '🕶️',
     language: 'Tamil',
     youtubeId: 'Y5BeWdODPqo',
-    videoUrl: '/trailers/jailer.mp4',
+    bookingUrl: SJ_CINEMAS_INFO.bookingUrl,
     audioTone: 'Tiger Ka Hukum Massive Dolby Atmos Thumps',
     colorPalette: ['#f59e0b', '#b45309', '#1c1917'],
     status: 'NOW_SHOWING',

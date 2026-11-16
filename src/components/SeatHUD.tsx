@@ -18,7 +18,7 @@ export const SeatHUD: React.FC<SeatHUDProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const badgeInfo = getTierBadgeInfo(score.tierName);
-  const targetBookingUrl = bookingUrl || `https://in.bookmyshow.com/buytickets/sj-cinemas-sreenivasa-ac-4k-dolby-atmos-nagari/cinema-nag-SJSN-MT/`;
+  const targetBookingUrl = bookingUrl || `https://in.bookmyshow.com/cinemas/nagari/sj-cinemas-sreenivasa-a-c-4k-dolby-atmos-nagari/buytickets/SJCN/20261116`;
 
   return (
     <div className="absolute top-16 left-4 sm:left-6 z-20 max-w-xs sm:max-w-sm w-full transition-all duration-300 pointer-events-auto">

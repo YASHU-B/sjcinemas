@@ -14,7 +14,7 @@ import { SeatMap2D } from './components/SeatMap2D';
 import { ControlToolbar } from './components/ControlToolbar';
 import { AuditoriumInfoModal } from './components/AuditoriumInfoModal';
 import { AdminPanelModal } from './components/AdminPanelModal';
-import { Sparkles, MapPin, Film, ChevronRight, Armchair, DoorOpen, ShieldCheck } from 'lucide-react';
+import { Sparkles, MapPin, Film, ChevronRight, Armchair, DoorOpen } from 'lucide-react';
 import { CinemaEntryOverlay } from './components/CinemaEntryOverlay';
 
 export const App: React.FC = () => {
@@ -25,7 +25,21 @@ export const App: React.FC = () => {
   const [trailers, setTrailers] = useState<TrailerVideo[]>(() => {
     try {
       const saved = localStorage.getItem('sjcinemas_custom_trailers');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hasRamayana = parsed.some((t: any) => t.id === 'ramayana');
+          const merged = hasRamayana ? parsed : [TRAILERS[0], ...parsed];
+          return merged.map((t: any) => ({
+            ...t,
+            colorPalette: Array.isArray(t.colorPalette) && t.colorPalette.length >= 3
+              ? t.colorPalette
+              : ['#f59e0b', '#dc2626', '#451a03'],
+            status: t.status || 'NOW_SHOWING',
+            showtimes: t.showtimes || 'Daily 4 Shows'
+          }));
+        }
+      }
     } catch {}
     return TRAILERS;
   });
@@ -38,12 +52,15 @@ export const App: React.FC = () => {
     try {
       const savedId = localStorage.getItem('sjcinemas_active_trailer_id');
       if (savedId) {
-        const found = trailers.find(t => t.id === savedId);
+        const found = trailers.find(t => t?.id === savedId);
         if (found) return found;
       }
     } catch {}
-    return trailers[0];
+    return (trailers && trailers[0]) || TRAILERS[0];
   });
+
+  // Guaranteed non-null active trailer reference
+  const currentActiveTrailer = activeTrailer || (trailers && trailers[0]) || TRAILERS[0];
 
   // Video URL state (defaulting to the newly added /trailers/leo.mp4)
   const [customVideoUrl, setCustomVideoUrl] = useState<string | null>(() => {
@@ -63,6 +80,7 @@ export const App: React.FC = () => {
   const [showEntry, setShowEntry] = useState<boolean>(true); // Grand cinema entry on site load!
   const [isWalkingIn, setIsWalkingIn] = useState<boolean>(false);
   const [lightsUp, setLightsUp] = useState<boolean>(true); // Start in warm walk-in lighting
+  const [rowLightsOn, setRowLightsOn] = useState<boolean>(true); // Seat side row number boxes LED light function
   const [isPlaying, setIsPlaying] = useState<boolean>(true); // Start with trailer playing
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(0.85);
@@ -82,6 +100,18 @@ export const App: React.FC = () => {
       ('ontouchstart' in window && window.innerWidth <= 1024)
     );
   });
+
+  // Secret Owner Admin shortcut (Ctrl+Shift+A or Cmd+Shift+A)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        setIsAdminOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Grand Walk-in Entrance Handler
   const handleEnterAuditorium = (seatId?: string) => {
@@ -217,7 +247,15 @@ export const App: React.FC = () => {
       {/* Top Header Bar */}
       <header className="absolute top-0 inset-x-0 z-30 h-14 bg-gradient-to-b from-black/90 via-black/50 to-transparent px-4 sm:px-6 flex items-center justify-between pointer-events-none">
         {/* Logo & Venue Info */}
-        <div className="flex items-center gap-3 pointer-events-auto">
+        {/* Venue Title & Branding (Double click secretly opens Owner Admin) */}
+        <div 
+          onClick={(e) => {
+            if (e.detail === 3) setIsAdminOpen(true);
+          }}
+          onDoubleClick={() => setIsAdminOpen(true)}
+          className="flex items-center gap-3 pointer-events-auto cursor-pointer"
+          title="SJ Cinemas Nagari (Owner: Triple-click logo to open Admin Panel)"
+        >
           <div className="w-9 h-9 rounded-xl bg-red-600/20 border border-red-500/50 flex items-center justify-center shadow-lg shadow-red-600/30">
             <Film className="w-5 h-5 text-red-500" />
           </div>
@@ -240,16 +278,6 @@ export const App: React.FC = () => {
 
         {/* Right Header Badges */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Theatre Owner Admin Panel */}
-          <button
-            onClick={() => setIsAdminOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-bold text-amber-300 transition cursor-pointer backdrop-blur-md shadow-lg shadow-amber-950/40"
-            title="Theatre Owner Control Panel: Switch trailer, upload MP4, edit movie banner"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Owner Admin</span>
-          </button>
-
           {/* Replay Cinematic Walk-in Entry */}
           <button
             onClick={() => handleEnterAuditorium(selectedSeatId)}
@@ -291,8 +319,9 @@ export const App: React.FC = () => {
           selectedSeatId={selectedSeatId}
           scoresMap={scoresMap}
           onSelectSeat={handleSelectSeat}
-          activeTrailer={activeTrailer}
+          activeTrailer={currentActiveTrailer}
           lightsUp={lightsUp}
+          rowLightsOn={rowLightsOn}
           viewMode={viewMode}
           showSpeakers={showSpeakers}
           isPlaying={isPlaying}
@@ -306,19 +335,12 @@ export const App: React.FC = () => {
           isEcoMode={isEcoMode}
         />
 
-        {/* Dynamic Seat Information HUD with Direct BookMyShow Action */}
-        {viewMode === 'SEAT' && !isWalkingIn && (
-          <SeatHUD
-            seat={selectedSeat}
-            score={currentScore}
-            onQuickCompare={handleSelectSeat}
-          />
-        )}
-
         {/* Floating Control Toolbar */}
         <ControlToolbar
           lightsUp={lightsUp}
           onToggleLights={() => setLightsUp(!lightsUp)}
+          rowLightsOn={rowLightsOn}
+          onToggleRowLights={() => setRowLightsOn(prev => !prev)}
           isPlaying={isPlaying}
           onTogglePlay={() => setIsPlaying(!isPlaying)}
           isMuted={isMuted}
@@ -365,7 +387,7 @@ export const App: React.FC = () => {
           onEnter={handleEnterAuditorium}
           bestSeatId={bestSeatId}
           trailers={trailers}
-          activeTrailer={activeTrailer}
+          activeTrailer={currentActiveTrailer}
           onSelectTrailer={handleSelectTrailer}
           onOpenAdmin={() => setIsAdminOpen(true)}
         />
@@ -382,7 +404,7 @@ export const App: React.FC = () => {
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
         trailers={trailers}
-        activeTrailer={activeTrailer}
+        activeTrailer={currentActiveTrailer}
         onSelectTrailer={handleSelectTrailer}
         onUpdateTrailers={handleUpdateTrailers}
         customVideoUrl={customVideoUrl}

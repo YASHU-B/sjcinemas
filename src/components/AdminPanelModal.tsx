@@ -56,7 +56,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
   // Custom Video Path state
   const [customPathInput, setCustomPathInput] = useState(
-    customVideoUrl || activeTrailer.videoUrl || '/trailers/leo.mp4'
+    customVideoUrl || activeTrailer?.videoUrl || '/trailers/leo.mp4'
   );
 
   const showToast = (msg: string) => {
@@ -65,6 +65,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  const currentActiveTrailer = activeTrailer || trailers[0];
 
   const handleApplyCustomPath = () => {
     if (!customPathInput.trim()) return;
@@ -111,7 +113,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     }
     const updated = trailers.filter(t => t.id !== id);
     onUpdateTrailers(updated);
-    if (activeTrailer.id === id) {
+    if (currentActiveTrailer?.id === id) {
       onSelectTrailer(updated[0]);
     }
     showToast("Trailer removed from catalog.");
@@ -203,13 +205,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               <div className="flex items-center justify-between text-xs text-white/60">
                 <span>Select the movie currently playing in Auditorium 1:</span>
                 <span className="text-[10px] text-amber-400 font-semibold">
-                  Active: {activeTrailer.title.split('(')[0]}
+                  Active: {(currentActiveTrailer?.title || 'Trailer').split('(')[0]}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {trailers.map(trailer => {
-                  const isCurrent = activeTrailer.id === trailer.id && !customVideoUrl;
+                  const isCurrent = currentActiveTrailer?.id === trailer.id && !customVideoUrl;
                   const hasLocalFile = trailer.videoUrl === '/trailers/leo.mp4' || trailer.id === 'leo';
 
                   return (
@@ -227,6 +229,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       }`}
                     >
                       <div>
+                        {trailer.posterUrl && (
+                          <div className="w-full h-32 rounded-xl overflow-hidden mb-2 bg-black/50 border border-white/10 shadow-md">
+                            <img src={trailer.posterUrl} alt={trailer.title} className="w-full h-full object-cover object-top" />
+                          </div>
+                        )}
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-xl">{trailer.thumbnail || '🎬'}</span>
                           <div className="flex items-center gap-1">

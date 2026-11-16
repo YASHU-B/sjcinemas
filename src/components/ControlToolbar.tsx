@@ -6,6 +6,7 @@ import {
   VolumeX,
   Lightbulb,
   LightbulbOff,
+  Sparkles,
   Layers,
   Radio,
   Maximize2,
@@ -18,6 +19,8 @@ import {
 interface ControlToolbarProps {
   lightsUp: boolean;
   onToggleLights: () => void;
+  rowLightsOn?: boolean;
+  onToggleRowLights?: () => void;
   isPlaying: boolean;
   onTogglePlay: () => void;
   isMuted: boolean;
@@ -37,6 +40,8 @@ interface ControlToolbarProps {
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   lightsUp,
   onToggleLights,
+  rowLightsOn = true,
+  onToggleRowLights,
   isPlaying,
   onTogglePlay,
   isMuted,
@@ -83,6 +88,22 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           {lightsUp ? <Lightbulb className="w-3.5 h-3.5 fill-black text-black" /> : <LightbulbOff className="w-3.5 h-3.5 text-white/60" />}
           <span className="hidden sm:inline">{lightsUp ? 'Lights: ON' : 'Lights: OFF'}</span>
         </button>
+
+        {/* Row Aisle Indicator Numbers Light Function (ON / OFF) */}
+        {onToggleRowLights && (
+          <button
+            onClick={onToggleRowLights}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              rowLightsOn
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-md shadow-amber-500/20'
+                : 'bg-white/10 hover:bg-white/20 text-white/50'
+            }`}
+            title={rowLightsOn ? "Seat Side Numbers Light: ON (Click to turn OFF)" : "Seat Side Numbers Light: OFF (Click to turn ON)"}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${rowLightsOn ? 'text-amber-400 fill-amber-400' : 'text-white/40'}`} />
+            <span className="hidden lg:inline">{rowLightsOn ? 'Row Light: ON' : 'Row Light: OFF'}</span>
+          </button>
+        )}
 
         {/* Sound Toggle */}
         <button
