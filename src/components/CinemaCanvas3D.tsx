@@ -342,6 +342,9 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
 
     video.addEventListener('loadeddata', handleLoaded);
     video.addEventListener('canplay', handleLoaded);
+    video.addEventListener('canplaythrough', handleLoaded);
+    video.addEventListener('playing', () => { if (!isCancelled) setHasRawVideo(true); });
+    video.addEventListener('timeupdate', () => { if (!isCancelled && video.currentTime > 0.05) setHasRawVideo(true); });
     video.addEventListener('error', handleError);
 
     video.src = videoSource;
@@ -355,6 +358,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       isCancelled = true;
       video.removeEventListener('loadeddata', handleLoaded);
       video.removeEventListener('canplay', handleLoaded);
+      video.removeEventListener('canplaythrough', handleLoaded);
       video.removeEventListener('error', handleError);
     };
   }, [activeTrailer, customVideoUrl]);
@@ -381,28 +385,36 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     video.volume = volume;
   }, [isMuted, volume]);
 
-  // Auto-unlock unmuted audio on first user interaction anywhere in the window
+  // Auto-unlock unmuted audio and start playback on user interaction
   useEffect(() => {
-    const unlockAudio = () => {
+    const unlockMedia = () => {
       const video = videoElementRef.current;
       if (video) {
         video.muted = isMuted;
         video.volume = volume;
         if (isPlaying && video.paused) {
-          video.play().catch(() => {});
+          video.play().catch(() => {
+            video.muted = true;
+            video.play().catch(() => {});
+          });
         }
       }
     };
 
-    window.addEventListener('click', unlockAudio, { once: true });
-    window.addEventListener('keydown', unlockAudio, { once: true });
-    window.addEventListener('touchstart', unlockAudio, { once: true });
+    // If walk-in triggered, immediately try to play
+    if (isWalkingIn) {
+      unlockMedia();
+    }
+
+    window.addEventListener('click', unlockMedia);
+    window.addEventListener('keydown', unlockMedia);
+    window.addEventListener('touchstart', unlockMedia, { passive: true });
     return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('click', unlockMedia);
+      window.removeEventListener('keydown', unlockMedia);
+      window.removeEventListener('touchstart', unlockMedia);
     };
-  }, [isMuted, volume, isPlaying]);
+  }, [isMuted, volume, isPlaying, isWalkingIn]);
 
   // Main Three.js Scene Setup
   useEffect(() => {
@@ -1889,15 +1901,18 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       <video
         ref={videoElementRef}
         playsInline
+        // @ts-expect-error webkit-playsinline for iOS Safari
+        webkit-playsinline="true"
         crossOrigin="anonymous"
         loop
         preload="auto"
         muted={isMuted}
         style={{
-          position: 'absolute',
-          width: '1px',
-          height: '1px',
-          opacity: 0,
+          position: 'fixed',
+          top: '-9999px',
+          left: '-9999px',
+          width: '320px',
+          height: '180px',
           pointerEvents: 'none',
           zIndex: -1
         }}

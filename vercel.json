@@ -1,6 +1,39 @@
 {
   "framework": "vite",
+  "headers": [
+    {
+      "source": "/trailers/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, HEAD, OPTIONS" },
+        { "key": "Accept-Ranges", "value": "bytes" },
+        { "key": "Content-Type", "value": "video/mp4" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/posters/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/trailers/(.*)",
+      "destination": "/trailers/$1"
+    },
+    {
+      "source": "/posters/(.*)",
+      "destination": "/posters/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
