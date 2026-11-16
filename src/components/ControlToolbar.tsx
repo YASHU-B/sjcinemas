@@ -11,7 +11,8 @@ import {
   Maximize2,
   Minimize2,
   Info,
-  Armchair
+  Armchair,
+  Zap
 } from 'lucide-react';
 
 interface ControlToolbarProps {
@@ -29,6 +30,8 @@ interface ControlToolbarProps {
   onOpenInfo: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  isEcoMode?: boolean;
+  onToggleEcoMode?: () => void;
 }
 
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
@@ -45,7 +48,9 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onToggleSeatMap,
   onOpenInfo,
   isFullscreen,
-  onToggleFullscreen
+  onToggleFullscreen,
+  isEcoMode,
+  onToggleEcoMode
 }) => {
   return (
     <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 max-w-2xl w-[92%] bg-[#080a12]/92 backdrop-blur-2xl border border-white/15 rounded-2xl p-2 shadow-2xl flex items-center justify-between gap-2 text-white select-none">
@@ -153,6 +158,21 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
         >
           <Radio className="w-4 h-4" />
         </button>
+
+        {/* Battery & GPU Eco Mode Toggle */}
+        {onToggleEcoMode && (
+          <button
+            onClick={onToggleEcoMode}
+            className={`p-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              isEcoMode
+                ? 'bg-emerald-500/25 border border-emerald-500/50 text-emerald-300'
+                : 'bg-white/10 hover:bg-white/20 text-white/70 hover:text-white'
+            }`}
+            title={isEcoMode ? "Eco Mode Active (Battery & GPU Saver: ON) - Click for High Quality" : "High Quality Active - Click for Eco Mode (Saves Battery & Smooths Lag)"}
+          >
+            <Zap className={`w-4 h-4 ${isEcoMode ? 'fill-emerald-400 text-emerald-400' : ''}`} />
+          </button>
+        )}
 
         {/* Theater Specs & Info Modal */}
         <button

@@ -37,6 +37,16 @@ export const App: React.FC = () => {
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
+  // Auto-detect mobile, tablets, or low-power screens for default Eco mode
+  const [isEcoMode, setIsEcoMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      window.innerWidth <= 768 ||
+      ('ontouchstart' in window && window.innerWidth <= 1024)
+    );
+  });
+
   // Grand Walk-in Entrance Handler
   const handleEnterAuditorium = (seatId?: string) => {
     if (seatId) {
@@ -213,6 +223,7 @@ export const App: React.FC = () => {
           onDropVideoFile={handleLoadVideoFile}
           isWalkingIn={isWalkingIn}
           onWalkInComplete={handleWalkInComplete}
+          isEcoMode={isEcoMode}
         />
 
         {/* Floating Control Toolbar */}
@@ -231,6 +242,8 @@ export const App: React.FC = () => {
           onOpenInfo={() => setIsInfoOpen(true)}
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
+          isEcoMode={isEcoMode}
+          onToggleEcoMode={() => setIsEcoMode(prev => !prev)}
         />
 
         {/* On-demand Interactive 2D Seat Selection Drawer (Opens only when "Seat Map" is clicked) */}

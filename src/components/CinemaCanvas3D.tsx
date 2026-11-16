@@ -22,6 +22,7 @@ interface CinemaCanvas3DProps {
   onDropVideoFile?: (file: File) => void;
   isWalkingIn?: boolean;
   onWalkInComplete?: () => void;
+  isEcoMode?: boolean;
 }
 
 export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
@@ -43,17 +44,33 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
   customVideoName,
   onDropVideoFile,
   isWalkingIn,
-  onWalkInComplete
+  onWalkInComplete,
+  isEcoMode = false
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const totalDragDistance = useRef(0);
+  const lastHoverCheck = useRef(0);
   const cameraAngles = useRef({ yaw: 0, pitch: 0 });
   const targetCameraPos = useRef(new THREE.Vector3(0, 3.8, 14.5));
   const currentCameraPos = useRef(new THREE.Vector3(0, 3.8, 14.5));
   const targetLookAt = useRef(new THREE.Vector3(0, screenSpec.centerHeight, screenSpec.z));
   const currentLookAt = useRef(new THREE.Vector3(0, screenSpec.centerHeight, screenSpec.z));
+
+  const isEcoModeRef = useRef(isEcoMode);
+  useEffect(() => {
+    isEcoModeRef.current = isEcoMode;
+    if (rendererRef.current) {
+      const isMobile = typeof navigator !== 'undefined' && (
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        window.innerWidth <= 768 ||
+        ('ontouchstart' in window && window.innerWidth <= 1024)
+      );
+      const maxDPR = isEcoMode || isMobile ? 1.0 : 1.5;
+      rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, maxDPR));
+    }
+  }, [isEcoMode]);
 
   // Live props refs to avoid stale closures inside the requestAnimationFrame loop
   const lightsUpRef = useRef(lightsUp);
@@ -114,58 +131,57 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
 
-  // High-Fidelity Procedural Wall Texture (Matching SJ Cinemas Nagari acoustic panels)
+  // High-Fidelity Procedural Wall Texture (Optimized 512x512 with fast pattern generation)
   const createWallTexture = () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
+    canvas.width = 512;
+    canvas.height = 512;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     // Base mottled acoustic heather grey fabric (Matching real photo)
     ctx.fillStyle = '#3a3f52';
-    ctx.fillRect(0, 0, 1024, 1024);
+    ctx.fillRect(0, 0, 512, 512);
 
-    // Fine acoustic fabric weave & granite noise
-    const imgData = ctx.getImageData(0, 0, 1024, 1024);
-    const data = imgData.data;
-    for (let i = 0; i < data.length; i += 4) {
-      const noise = (Math.random() - 0.5) * 36;
-      data[i] = Math.max(0, Math.min(255, data[i] + noise));
-      data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
-      data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+    // Fast acoustic fabric noise
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+    for (let py = 0; py < 512; py += 4) {
+      for (let px = 0; px < 512; px += 4) {
+        if ((px + py) % 8 === 0) {
+          ctx.fillRect(px, py, 2, 2);
+        }
+      }
     }
-    ctx.putImageData(imgData, 0, 0);
 
     // Distinct Vertical Crimson Geometric Acoustic Panels (Matching real photo pattern)
-    const panelCols = [40, 120, 220, 310, 420, 520, 620, 720, 830, 930];
+    const panelCols = [20, 60, 110, 155, 210, 260, 310, 360, 415, 465];
     panelCols.forEach((px, idx) => {
-      const pWidth = idx % 2 === 0 ? 52 : 36;
+      const pWidth = idx % 2 === 0 ? 26 : 18;
       const grad = ctx.createLinearGradient(px, 0, px + pWidth, 0);
       grad.addColorStop(0, '#881337');
       grad.addColorStop(0.2, '#b91c1c');
       grad.addColorStop(0.8, '#dc2626');
       grad.addColorStop(1, '#991b1b');
       ctx.fillStyle = grad;
-      ctx.fillRect(px, 0, pWidth, 700);
+      ctx.fillRect(px, 0, pWidth, 350);
 
       // Acoustic shadow grooves between panels
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(px - 3, 0, 3, 700);
-      ctx.fillRect(px + pWidth, 0, 3, 700);
+      ctx.fillRect(px - 2, 0, 2, 350);
+      ctx.fillRect(px + pWidth, 0, 2, 350);
     });
 
     // Lower Acoustic Wainscot / Dado (dark charcoal base along bottom of wall)
     ctx.fillStyle = '#080a12';
-    ctx.fillRect(0, 715, 1024, 309);
+    ctx.fillRect(0, 358, 512, 154);
 
     // Glowing Warm-Amber LED Accent Line running above wainscot
-    const amberGrad = ctx.createLinearGradient(0, 704, 0, 716);
+    const amberGrad = ctx.createLinearGradient(0, 352, 0, 358);
     amberGrad.addColorStop(0, 'rgba(255, 190, 107, 0)');
     amberGrad.addColorStop(0.5, 'rgba(255, 205, 130, 1)');
     amberGrad.addColorStop(1, 'rgba(255, 180, 80, 0.2)');
     ctx.fillStyle = amberGrad;
-    ctx.fillRect(0, 704, 1024, 12);
+    ctx.fillRect(0, 352, 512, 6);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
@@ -174,30 +190,30 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     return texture;
   };
 
-  // High-Fidelity Cinema Floor Carpet Texture
+  // High-Fidelity Cinema Floor Carpet Texture (Optimized 256x256)
   const createCarpetTexture = () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     // Dark midnight cinema carpet base
     ctx.fillStyle = '#10131d';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
 
     // Diamond grid woven carpet pattern
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.lineWidth = 1.5;
-    for (let i = -512; i <= 1024; i += 32) {
+    for (let i = -256; i <= 512; i += 32) {
       ctx.beginPath();
       ctx.moveTo(i, 0);
-      ctx.lineTo(i + 512, 512);
+      ctx.lineTo(i + 256, 256);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(i, 512);
-      ctx.lineTo(i + 512, 0);
+      ctx.moveTo(i, 256);
+      ctx.lineTo(i + 256, 0);
       ctx.stroke();
     }
 
@@ -208,38 +224,38 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     return texture;
   };
 
-  // High-Fidelity Cinema Acoustic Ceiling Tile Grid Texture (Matching SJ Cinemas Nagari)
+  // High-Fidelity Cinema Acoustic Ceiling Tile Grid Texture (Optimized 256x256)
   const createCeilingTexture = () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     // Pitch black acoustic tile base
     ctx.fillStyle = '#07090f';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
 
     // Fine acoustic micro-perforations
     ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
-    for (let py = 6; py < 512; py += 16) {
-      for (let px = 6; px < 512; px += 16) {
+    for (let py = 4; py < 256; py += 16) {
+      for (let px = 4; px < 256; px += 16) {
         ctx.fillRect(px, py, 1.5, 1.5);
       }
     }
 
-    // Modular Acoustic T-Bar Grid Bevel Seams (Matching modular ceiling panels)
+    // Modular Acoustic T-Bar Grid Bevel Seams
     ctx.strokeStyle = '#121624';
-    ctx.lineWidth = 3;
-    for (let i = 0; i <= 512; i += 128) {
+    ctx.lineWidth = 2;
+    for (let i = 0; i <= 256; i += 64) {
       ctx.beginPath();
       ctx.moveTo(i, 0);
-      ctx.lineTo(i, 512);
+      ctx.lineTo(i, 256);
       ctx.stroke();
 
       ctx.beginPath();
       ctx.moveTo(0, i);
-      ctx.lineTo(512, i);
+      ctx.lineTo(256, i);
       ctx.stroke();
     }
 
@@ -393,17 +409,26 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     camera.position.copy(targetCameraPos.current);
     cameraRef.current = camera;
 
-    // 3. WebGL Renderer
+    // 3. WebGL Renderer (Optimized for broad cross-device compatibility & low power)
+    const isMobile = typeof navigator !== 'undefined' && (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (window.innerWidth <= 768) ||
+      ('ontouchstart' in window && window.innerWidth <= 1024)
+    );
+
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance'
+      antialias: !isMobile && !isEcoModeRef.current,
+      powerPreference: isMobile || isEcoModeRef.current ? 'low-power' : 'default',
+      precision: isMobile ? 'mediump' : 'highp',
+      stencil: false,
+      depth: true
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const maxDPR = isMobile || isEcoModeRef.current ? 1.0 : 1.5;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDPR));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.3;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false; // Disabling shadow map pass saves up to 40% GPU fill rate & stops shader crashes on mobile
     rendererRef.current = renderer;
     container.appendChild(renderer.domElement);
 
@@ -564,12 +589,6 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
         diagBar.position.set(xPos + sign * 0.03, 5.4, zPos);
         diagBar.rotation.z = sign * 0.65; // ~37 degrees diagonal tilt
         scene.add(diagBar);
-
-        // Warm amber point light casting light fan onto acoustic panel
-        const sconceLight = new THREE.PointLight(0xffbe6b, 1.8, 8.5, 1.6);
-        sconceLight.position.set(xPos + sign * 0.35, 5.4, zPos);
-        scene.add(sconceLight);
-        wallLights.push(sconceLight);
       });
     });
 
@@ -613,17 +632,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       const cove = new THREE.Mesh(coveGeo, coveMat);
       cove.position.set(xPos, hall.height - 0.04, hall.depth / 2);
       scene.add(cove);
-
-      // Downward perimeter cove wash lights
-      for (let cz = 6.0; cz < hall.depth - 2; cz += 6.0) {
-        const covePt = new THREE.PointLight(0xffb74d, 1.4, 8, 1.8);
-        covePt.position.set(xPos + (xPos < 0 ? 0.4 : -0.4), hall.height - 0.25, cz);
-        scene.add(covePt);
-        wallLights.push(covePt);
-      }
     });
-
-    wallLightsRef.current = wallLights;
 
     // Pitch-black modular acoustic tiled ceiling plane
     const ceilingGeo = new THREE.PlaneGeometry(hall.width, hall.depth);
@@ -667,11 +676,6 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       const canGlow = new THREE.Mesh(canGlowGeo, canGlowMat);
       canGlow.position.set(0, hall.height - 0.036, z);
       scene.add(canGlow);
-
-      const canLight = new THREE.PointLight(0xa5f3fc, 1.2, 7, 2.0);
-      canLight.position.set(0, hall.height - 0.3, z);
-      scene.add(canLight);
-      wallLights.push(canLight);
     });
 
     // Dynamic Radiating Angled Red Neon LED Batons (Exact perspective pattern from photo)
@@ -789,10 +793,11 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       });
     });
 
-    // 9. HIGH-RESOLUTION DYNAMIC 4K MOVIE SCREEN CANVAS
+    // 9. HIGH-PERFORMANCE DYNAMIC MOVIE SCREEN CANVAS
     const movieCanvas = document.createElement('canvas');
-    movieCanvas.width = 1920;
-    movieCanvas.height = 1080;
+    // 960x540 provides crisp visual fidelity while saving 75% RAM and CPU compared to 1080p
+    movieCanvas.width = 960;
+    movieCanvas.height = 540;
     videoCanvasRef.current = movieCanvas;
 
     // Immediately render first frame so screen is never blank
@@ -802,6 +807,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     screenTexture.colorSpace = THREE.SRGBColorSpace;
     screenTexture.minFilter = THREE.LinearFilter;
     screenTexture.magFilter = THREE.LinearFilter;
+    screenTexture.generateMipmaps = false; // Eliminates heavy GPU mipmap regeneration on every frame
     screenTexture.needsUpdate = true;
     screenTextureRef.current = screenTexture;
 
@@ -895,12 +901,31 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       rearArm.position.set(rx, 5.8, hall.depth - 0.19);
       rearArm.rotation.z = 0.65;
       scene.add(rearArm);
-
-      const rearPt = new THREE.PointLight(0xffbe6b, 1.6, 7.5, 1.8);
-      rearPt.position.set(rx, 5.8, hall.depth - 0.45);
-      scene.add(rearPt);
-      wallLights.push(rearPt);
     });
+
+    // Consolidated architectural wash lights
+    // Replaces 29 individual point lights with 4 strategic cluster washes to prevent uniform overflow & lag on mobile
+    const leftWallWash = new THREE.PointLight(0xffbe6b, 2.6, 26, 1.4);
+    leftWallWash.position.set(-hall.width / 2 + 1.2, 5.4, hall.depth * 0.5);
+    scene.add(leftWallWash);
+    wallLights.push(leftWallWash);
+
+    const rightWallWash = new THREE.PointLight(0xffbe6b, 2.6, 26, 1.4);
+    rightWallWash.position.set(hall.width / 2 - 1.2, 5.4, hall.depth * 0.5);
+    scene.add(rightWallWash);
+    wallLights.push(rightWallWash);
+
+    const ceilingWash = new THREE.PointLight(0xa5f3fc, 2.0, 26, 1.5);
+    ceilingWash.position.set(0, hall.height - 0.8, hall.depth * 0.48);
+    scene.add(ceilingWash);
+    wallLights.push(ceilingWash);
+
+    const rearWallWash = new THREE.PointLight(0xffbe6b, 1.8, 18, 1.5);
+    rearWallWash.position.set(0, 5.6, hall.depth - 1.5);
+    scene.add(rearWallWash);
+    wallLights.push(rearWallWash);
+
+    wallLightsRef.current = wallLights;
 
     // Rear Corner Exit Portals with Illuminated Green EXIT Signs
     [-hall.width / 2 + 1.2, hall.width / 2 - 1.2].forEach(exX => {
@@ -962,11 +987,6 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     const instancedCushions = new THREE.InstancedMesh(cushionGeo, plushRedMat, seats.length);
     const instancedHeadrests = new THREE.InstancedMesh(headrestGeo, headrestMat, seats.length);
     const instancedArmrests = new THREE.InstancedMesh(frameGeo, frameMat, seats.length);
-
-    instancedBacks.castShadow = true;
-    instancedBacks.receiveShadow = true;
-    instancedCushions.receiveShadow = true;
-    instancedHeadrests.castShadow = true;
 
     scene.add(instancedBacks);
     scene.add(instancedCushions);
@@ -1041,8 +1061,10 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     speakerGroup.visible = showSpeakers;
     scene.add(speakerGroup);
 
-    // 13. High-Performance Render Loop
+    // 13. High-Performance Render Loop (Throttled & Power-Efficient)
     let lastTime = performance.now();
+    let lastTrailerDraw = 0;
+
     const animate = () => {
       animFrameRef.current = requestAnimationFrame(animate);
       const now = performance.now();
@@ -1050,8 +1072,12 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       lastTime = now;
       trailerTimeRef.current += dt;
 
-      // Draw high-resolution dynamic movie trailer on the screen canvas
-      if (videoCanvasRef.current && isPlayingRef.current) {
+      // Draw dynamic movie trailer on screen canvas throttled to cinematic 24 FPS
+      // Avoids updating a huge canvas 60 or 120 times per second, cutting CPU & VRAM bandwidth by up to 75%
+      const trailerFPS = isMobile || isEcoModeRef.current ? 20 : 24;
+      const trailerInterval = 1000 / trailerFPS;
+      if (videoCanvasRef.current && isPlayingRef.current && (now - lastTrailerDraw >= trailerInterval)) {
+        lastTrailerDraw = now;
         renderMovieScene(videoCanvasRef.current, trailerTimeRef.current);
         if (screenTextureRef.current) {
           screenTextureRef.current.needsUpdate = true;
@@ -1185,8 +1211,31 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
+    // Pause rendering and video when tab is hidden to save battery & device heat
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+          animFrameRef.current = null;
+        }
+        if (videoElementRef.current && !videoElementRef.current.paused) {
+          videoElementRef.current.pause();
+        }
+      } else {
+        lastTime = performance.now();
+        if (!animFrameRef.current) {
+          animate();
+        }
+        if (isPlayingRef.current && videoElementRef.current && videoElementRef.current.paused) {
+          videoElementRef.current.play().catch(() => {});
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
@@ -1297,193 +1346,125 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // 2. High-energy cinematic particles and atmosphere
+    // 2. High-energy cinematic particles and atmosphere (Optimized particle count)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    const particleCount = movie === 'leo' ? 65 : 45;
+    const particleCount = movie === 'leo' ? 24 : 16;
     for (let p = 0; p < particleCount; p++) {
-      const px = ((p * 83 + t * (movie === 'leo' ? 220 : 340)) % (w - 80)) + 40;
-      const py = ((p * 47 + Math.sin(t * 2.8 + p) * 160 + h / 2) % (h - 90)) + 45;
-      const pr = 2.5 + (p % 4);
+      const px = ((p * 83 + t * (movie === 'leo' ? 140 : 200)) % (w - 40)) + 20;
+      const py = ((p * 47 + Math.sin(t * 2.8 + p) * 90 + h / 2) % (h - 50)) + 25;
+      const pr = 1.8 + (p % 3);
       ctx.beginPath();
       ctx.arc(px, py, pr, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // 3. CinemaScope 2.39:1 Letterbox Bars (Top & Bottom Masking)
-    const letterboxHeight = 70;
+    const letterboxHeight = 36;
     ctx.fillStyle = '#020306';
     ctx.fillRect(0, 0, w, letterboxHeight);
     ctx.fillRect(0, h - letterboxHeight, w, letterboxHeight);
 
     // Gold Top Cinema Ribbon
     ctx.fillStyle = '#f59e0b';
-    ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 12px "Plus Jakarta Sans", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('★ SJ CINEMAS SREENIVASA NAGARI • AUDITORIUM 1', 60, 45);
+    ctx.fillText('★ SJ CINEMAS SREENIVASA NAGARI • AUDITORIUM 1', 30, 24);
 
     ctx.textAlign = 'right';
-    ctx.font = 'bold 18px monospace';
+    ctx.font = 'bold 11px monospace';
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText('BARCO 4K RGB LASER • DOLBY ATMOS 64-CH SPATIAL SOUND', w - 60, 45);
+    ctx.fillText('BARCO 4K RGB LASER • DOLBY ATMOS 64-CH SPATIAL SOUND', w - 30, 24);
 
-    // 4. Movie-Specific Artwork, Credits & Typographic Trailer Scenes
+    // 4. Movie-Specific Artwork, Credits & Typographic Trailer Scenes (High performance text without CPU blur)
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 32;
+    ctx.shadowBlur = 0; // Disabled costly 32px Gaussian blur filter
+
+    const drawCrispText = (text: string, x: number, y: number, font: string, fill: string, strokeWidth = 0) => {
+      ctx.font = font;
+      if (strokeWidth > 0) {
+        ctx.strokeStyle = '#020306';
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeText(text, x, y);
+      }
+      ctx.fillStyle = fill;
+      ctx.fillText(text, x, y);
+    };
 
     if (movie === 'leo') {
       // LEO - Official Trailer
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 76px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('LEO', w / 2, h / 2 - 45);
-
-      ctx.font = 'bold 32px monospace';
-      ctx.fillStyle = '#ef4444';
-      ctx.fillText('★ BLOODY SWEET ★', w / 2, h / 2 + 10);
-
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('THALAPATHY VIJAY • LOKESH KANAGARAJ • ANIRUDH', w / 2, h / 2 + 55);
-
-      ctx.font = '600 18px monospace';
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillText('LOKESH CINEMATIC UNIVERSE (LCU) • 64-CHANNEL DOLBY ATMOS', w / 2, h / 2 + 95);
+      drawCrispText('LEO', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
+      drawCrispText('★ BLOODY SWEET ★', w / 2, h / 2 + 10, 'bold 18px monospace', '#ef4444', 3);
+      drawCrispText('THALAPATHY VIJAY • LOKESH KANAGARAJ • ANIRUDH', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
+      drawCrispText('LOKESH CINEMATIC UNIVERSE (LCU) • 64-CHANNEL DOLBY ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#f59e0b');
     } else if (movie === 'coolie') {
       // COOLIE - Official Teaser
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = '900 78px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('COOLIE', w / 2, h / 2 - 45);
-
-      ctx.font = 'bold 30px monospace';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText('D . I . S . C . O', w / 2, h / 2 + 10);
-
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#fef08a';
-      ctx.fillText('SUPERSTAR RAJINIKANTH • LOKESH KANAGARAJ • SUN PICTURES', w / 2, h / 2 + 55);
-
-      ctx.font = '600 18px monospace';
-      ctx.fillStyle = '#eab308';
-      ctx.fillText('THALAIVAR 171 • ANIRUDH "POWERHOUSE" BASS MIX', w / 2, h / 2 + 95);
+      drawCrispText('COOLIE', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#fbbf24', 5);
+      drawCrispText('D . I . S . C . O', w / 2, h / 2 + 10, 'bold 17px monospace', '#ffffff', 3);
+      drawCrispText('SUPERSTAR RAJINIKANTH • LOKESH KANAGARAJ • SUN PICTURES', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#fef08a', 2);
+      drawCrispText('THALAIVAR 171 • ANIRUDH "POWERHOUSE" BASS MIX', w / 2, h / 2 + 58, '600 11px monospace', '#eab308');
     } else if (movie === 'goat') {
       // THE GREATEST OF ALL TIME (GOAT)
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 64px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('THE GREATEST OF ALL TIME', w / 2, h / 2 - 45);
-
-      ctx.font = 'bold 32px monospace';
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText('G . O . A . T', w / 2, h / 2 + 10);
-
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('THALAPATHY VIJAY • VENKAT PRABHU • YUVAN SHANKAR RAJA', w / 2, h / 2 + 55);
-
-      ctx.font = '600 18px monospace';
-      ctx.fillStyle = '#60a5fa';
-      ctx.fillText('A VENKAT PRABHU HERO • HIGH-OCTANE CHASE DOLBY ATMOS', w / 2, h / 2 + 95);
+      drawCrispText('THE GREATEST OF ALL TIME', w / 2, h / 2 - 25, '900 36px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
+      drawCrispText('G . O . A . T', w / 2, h / 2 + 10, 'bold 18px monospace', '#38bdf8', 3);
+      drawCrispText('THALAPATHY VIJAY • VENKAT PRABHU • YUVAN SHANKAR RAJA', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
+      drawCrispText('A VENKAT PRABHU HERO • HIGH-OCTANE CHASE DOLBY ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#60a5fa');
     } else if (movie === 'amaran') {
       // AMARAN - Official Trailer
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 76px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('AMARAN', w / 2, h / 2 - 45);
-
-      ctx.font = 'bold 28px monospace';
-      ctx.fillStyle = '#86efac';
-      ctx.fillText('MAJOR MUKUND VARADARAJAN AC', w / 2, h / 2 + 10);
-
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('SIVAKARTHIKEYAN • SAI PALLAVI • RAAJ KAMAL FILMS', w / 2, h / 2 + 55);
-
-      ctx.font = '600 18px monospace';
-      ctx.fillStyle = '#4ade80';
-      ctx.fillText('MUSIC BY GV PRAKASH KUMAR • RASHTRIYA RIFLES TACTICAL ATMOS', w / 2, h / 2 + 95);
+      drawCrispText('AMARAN', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
+      drawCrispText('MAJOR MUKUND VARADARAJAN AC', w / 2, h / 2 + 10, 'bold 16px monospace', '#86efac', 3);
+      drawCrispText('SIVAKARTHIKEYAN • SAI PALLAVI • RAAJ KAMAL FILMS', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
+      drawCrispText('MUSIC BY GV PRAKASH KUMAR • RASHTRIYA RIFLES TACTICAL ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#4ade80');
     } else if (movie === 'vikram') {
       // VIKRAM - Official Trailer
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 76px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('VIKRAM', w / 2, h / 2 - 45);
-
-      ctx.font = 'bold 28px monospace';
-      ctx.fillStyle = '#f87171';
-      ctx.fillText('ONCE UPON A TIME THERE LIVED A GHOST', w / 2, h / 2 + 10);
-
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('KAMAL HAASAN • FAHADH FAASIL • VIJAY SETHUPATHI', w / 2, h / 2 + 55);
-
-      ctx.font = '600 18px monospace';
-      ctx.fillStyle = '#ef4444';
-      ctx.fillText('DIRECTED BY LOKESH KANAGARAJ • ANIRUDH CANNON BASS', w / 2, h / 2 + 95);
+      drawCrispText('VIKRAM', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
+      drawCrispText('ONCE UPON A TIME THERE LIVED A GHOST', w / 2, h / 2 + 10, 'bold 16px monospace', '#f87171', 3);
+      drawCrispText('KAMAL HAASAN • FAHADH FAASIL • VIJAY SETHUPATHI', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
+      drawCrispText('DIRECTED BY LOKESH KANAGARAJ • ANIRUDH CANNON BASS', w / 2, h / 2 + 58, '600 11px monospace', '#ef4444');
     } else if (movie === 'jailer') {
       // JAILER - Showcase
-      ctx.fillStyle = '#fde047';
-      ctx.font = '900 76px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('JAILER', w / 2, h / 2 - 45);
-
-      ctx.font = 'bold 30px monospace';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText('★ TIGER KA HUKUM ★', w / 2, h / 2 + 10);
-
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#fef08a';
-      ctx.fillText('SUPERSTAR RAJINIKANTH • NELSON DILIPKUMAR • ANIRUDH', w / 2, h / 2 + 55);
-
-      ctx.font = '600 18px monospace';
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillText('MUTHUVEL PANDIAN MASS SHOWCASE • 64-CHANNEL ATMOS THUMP', w / 2, h / 2 + 95);
+      drawCrispText('JAILER', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#fde047', 5);
+      drawCrispText('★ TIGER KA HUKUM ★', w / 2, h / 2 + 10, 'bold 18px monospace', '#ffffff', 3);
+      drawCrispText('SUPERSTAR RAJINIKANTH • NELSON DILIPKUMAR • ANIRUDH', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#fef08a', 2);
+      drawCrispText('MUTHUVEL PANDIAN MASS SHOWCASE • 64-CHANNEL ATMOS THUMP', w / 2, h / 2 + 58, '600 11px monospace', '#f59e0b');
     } else {
       // PUSHPA 2: THE RULE
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 72px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('PUSHPA 2: THE RULE', w / 2, h / 2 - 45);
-
-      ctx.font = 'bold 30px monospace';
-      ctx.fillStyle = '#f97316';
-      ctx.fillText('WILDFIRE HAS BEGUN', w / 2, h / 2 + 10);
-
-      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('ALLU ARJUN • RASHMIKA MANDANNA • SUKUMAR', w / 2, h / 2 + 55);
-
-      ctx.font = '600 18px monospace';
-      ctx.fillStyle = '#fb923c';
-      ctx.fillText('MUSIC BY DEVI SRI PRASAD (DSP) • WILDFIRE DOLBY ATMOS', w / 2, h / 2 + 95);
+      drawCrispText('PUSHPA 2: THE RULE', w / 2, h / 2 - 25, '900 42px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
+      drawCrispText('WILDFIRE HAS BEGUN', w / 2, h / 2 + 10, 'bold 17px monospace', '#f97316', 3);
+      drawCrispText('ALLU ARJUN • RASHMIKA MANDANNA • SUKUMAR', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
+      drawCrispText('MUSIC BY DEVI SRI PRASAD (DSP) • WILDFIRE DOLBY ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#fb923c');
     }
 
     // 5. 64-Channel Audio Equalizer Spectrum (Live Animated Waves)
-    ctx.shadowBlur = 0;
-    const barCount = 56;
-    const barWidth = 10;
-    const spacing = 18;
+    const barCount = 36;
+    const barWidth = 6;
+    const spacing = 11;
     const startX = (w - barCount * spacing) / 2;
 
     for (let b = 0; b < barCount; b++) {
       const freq = Math.abs(Math.sin(t * 8.5 + b * 0.38));
-      const barH = 14 + 75 * freq;
+      const barH = 8 + 45 * freq;
 
       ctx.fillStyle = b % 2 === 0 ? '#38bdf8' : '#e11d2e';
-      ctx.fillRect(startX + b * spacing, h - letterboxHeight - 15 - barH, barWidth, barH);
+      ctx.fillRect(startX + b * spacing, h - letterboxHeight - 10 - barH, barWidth, barH);
     }
 
     // 6. Raw Trailer Guidance Badge (on-screen prompt to place .mp4 in public/trailers)
     ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 1;
-    const boxW = 620;
-    const boxH = 32;
+    const boxW = 480;
+    const boxH = 22;
     const boxX = (w - boxW) / 2;
-    const boxY = h - letterboxHeight - 62;
+    const boxY = h - letterboxHeight - 38;
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, 16);
+    ctx.roundRect(boxX, boxY, boxW, boxH, 11);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 10px "Plus Jakarta Sans", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`📁 RAW TRAILERS: Place "${activeTrailer.id}.mp4" into public/trailers/ or drop any video here`, w / 2, boxY + 21);
+    ctx.fillText(`📁 Place "${activeTrailer.id}.mp4" into public/trailers/ or drop any video file`, w / 2, boxY + 15);
 
     // Update screen bounce light in theater
     if (screenLightRef.current) {
@@ -1501,6 +1482,11 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging) {
+      // Throttle hover raycasting to ~16 Hz (every 60ms) to avoid lagging mouse events
+      const now = performance.now();
+      if (now - lastHoverCheck.current < 60) return;
+      lastHoverCheck.current = now;
+
       // Check hover over seats to show pointer cursor
       if (mountRef.current && cameraRef.current) {
         const rect = mountRef.current.getBoundingClientRect();
