@@ -62,19 +62,26 @@ export const App: React.FC = () => {
   // Guaranteed non-null active trailer reference
   const currentActiveTrailer = activeTrailer || (trailers && trailers[0]) || TRAILERS[0];
 
-  // Video URL state (defaulting to the newly added /trailers/leo.mp4)
+  // Video URL state (defaulting to the newly added /trailers/ramayana.mp4)
   const [customVideoUrl, setCustomVideoUrl] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('sjcinemas_custom_video_url') || '/trailers/leo.mp4';
+      const stored = localStorage.getItem('sjcinemas_custom_video_url');
+      if (stored && !stored.includes('leo.mp4')) return stored;
+      // Clear old leo references
+      localStorage.setItem('sjcinemas_custom_video_url', '/trailers/ramayana.mp4');
+      return '/trailers/ramayana.mp4';
     } catch {}
-    return '/trailers/leo.mp4';
+    return '/trailers/ramayana.mp4';
   });
 
   const [customVideoName, setCustomVideoName] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('sjcinemas_custom_video_name') || 'Leo (2023) Official 4K Trailer';
+      const storedName = localStorage.getItem('sjcinemas_custom_video_name');
+      if (storedName && !storedName.toLowerCase().includes('leo')) return storedName;
+      localStorage.setItem('sjcinemas_custom_video_name', 'Ramayana (Showing in 3D • Telugu & Tamil)');
+      return 'Ramayana (Showing in 3D • Telugu & Tamil)';
     } catch {}
-    return 'Leo (2023) Official 4K Trailer';
+    return 'Ramayana (Showing in 3D • Telugu & Tamil)';
   });
 
   const [showEntry, setShowEntry] = useState<boolean>(true); // Grand cinema entry on site load!

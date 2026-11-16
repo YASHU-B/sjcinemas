@@ -47,16 +47,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   // Form state for adding a new movie
   const [newTitle, setNewTitle] = useState('');
   const [newGenre, setNewGenre] = useState('');
-  const [newLanguage, setNewLanguage] = useState('Tamil');
-  const [newVideoUrl, setNewVideoUrl] = useState('/trailers/leo.mp4');
+  const [newLanguage, setNewLanguage] = useState('Telugu / Tamil');
+  const [newVideoUrl, setNewVideoUrl] = useState('/trailers/ramayana.mp4');
   const [newShowtimes, setNewShowtimes] = useState('11:00 AM • 2:30 PM • 6:30 PM • 10:00 PM');
   const [newStatus, setNewStatus] = useState<'NOW_SHOWING' | 'COMING_SOON'>('NOW_SHOWING');
-  const [newColor, setNewColor] = useState('#e11d2e');
+  const [newColor, setNewColor] = useState('#f59e0b');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Custom Video Path state
   const [customPathInput, setCustomPathInput] = useState(
-    customVideoUrl || activeTrailer?.videoUrl || '/trailers/leo.mp4'
+    customVideoUrl || activeTrailer?.videoUrl || '/trailers/ramayana.mp4'
   );
 
   const showToast = (msg: string) => {
@@ -212,7 +212,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {trailers.map(trailer => {
                   const isCurrent = currentActiveTrailer?.id === trailer.id && !customVideoUrl;
-                  const hasLocalFile = trailer.videoUrl === '/trailers/leo.mp4' || trailer.id === 'leo';
+                  const hasLocalFile = trailer.videoUrl === '/trailers/ramayana.mp4' || trailer.id === 'ramayana';
 
                   return (
                     <div
@@ -309,26 +309,26 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   Local Video Files Detected
                 </h4>
                 <p className="text-white/70 text-[11px] leading-relaxed">
-                  You added <code className="text-white font-mono bg-black/40 px-1 py-0.5 rounded">public/trailers/leo.mp4</code>.
+                  You added <code className="text-white font-mono bg-black/40 px-1 py-0.5 rounded">public/trailers/ramayana.mp4</code>.
                   You can set any local video path or drop a video file below to immediately stream it onto the 3D Harkness curved screen.
                 </p>
               </div>
 
-              {/* Fast Shortcut for leo.mp4 */}
+              {/* Fast Shortcut for ramayana.mp4 */}
               <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-white block">Leo (2023) Official 1080p MP4</span>
-                  <span className="text-[10px] text-emerald-400 font-mono">/trailers/leo.mp4 (Available in public folder)</span>
+                  <span className="text-xs font-bold text-white block">Ramayana (3D) Official 1080p MP4</span>
+                  <span className="text-[10px] text-emerald-400 font-mono">/trailers/ramayana.mp4 (Available in public folder)</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    onSetCustomVideo('/trailers/leo.mp4', 'Leo Official Trailer');
-                    showToast('Broadcasting /trailers/leo.mp4 on 4K screen!');
+                    onSetCustomVideo('/trailers/ramayana.mp4', 'Ramayana (Showing in 3D • Telugu & Tamil)');
+                    showToast('Broadcasting /trailers/ramayana.mp4 on 4K screen!');
                   }}
                   className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black font-extrabold text-xs hover:bg-emerald-400 transition cursor-pointer"
                 >
-                  Stream Leo MP4
+                  Stream Ramayana MP4
                 </button>
               </div>
 

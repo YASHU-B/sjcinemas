@@ -325,9 +325,6 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       if (isCancelled) return;
       setHasRawVideo(true);
       if (isPlaying) {
-        if (video.currentTime < 2.0 && videoSource.includes('leo.mp4')) {
-          video.currentTime = 2.4;
-        }
         video.muted = isMuted;
         video.volume = volume;
         video.play().catch(() => {
@@ -367,9 +364,6 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     const video = videoElementRef.current;
     if (!video) return;
     if (isPlaying) {
-      if (video.currentTime < 2.0 && video.src.includes('leo.mp4')) {
-        video.currentTime = 2.4;
-      }
       video.play().catch(() => {
         video.muted = true;
         video.play().catch(() => {});
@@ -638,7 +632,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
 
     const sconceLensGeo = new THREE.CircleGeometry(0.18, 32);
     sconceLensGeo.rotateY(Math.PI / 2);
-    const sconceLensMat = new THREE.MeshBasicMaterial({ color: 0xffd188 });
+    const sconceLensMat = new THREE.MeshBasicMaterial({ color: 0xffd188, transparent: true, opacity: 1.0 });
 
     const diagBarGeo = new THREE.BoxGeometry(0.035, 0.76, 0.035);
     const diagBarMat = new THREE.MeshStandardMaterial({ color: 0x07090e, metalness: 0.8, roughness: 0.3 });
@@ -734,9 +728,9 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
 
     // 8. Top of Theatre Ceiling Architecture (Matching real SJ Cinemas Nagari photo)
     // Continuous Warm-Amber Wall-Ceiling Cove Strip running along top edge of both walls
+    const coveGeo = new THREE.BoxGeometry(0.12, 0.08, hall.depth - 3);
+    const coveMat = new THREE.MeshBasicMaterial({ color: 0xffdf88, transparent: true, opacity: 1.0 });
     [-hall.width / 2 + 0.12, hall.width / 2 - 0.12].forEach(xPos => {
-      const coveGeo = new THREE.BoxGeometry(0.12, 0.08, hall.depth - 3);
-      const coveMat = new THREE.MeshBasicMaterial({ color: 0xffdf88 });
       const cove = new THREE.Mesh(coveGeo, coveMat);
       cove.position.set(xPos, hall.height - 0.04, hall.depth / 2);
       scene.add(cove);
@@ -761,7 +755,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
     const canFixtureMat = new THREE.MeshStandardMaterial({ color: 0x0d111c, metalness: 0.85, roughness: 0.3 });
     const canLensGeo = new THREE.CircleGeometry(0.20, 24);
     canLensGeo.rotateX(Math.PI / 2);
-    const canLensMat = new THREE.MeshBasicMaterial({ color: 0xdbeafe });
+    const canLensMat = new THREE.MeshBasicMaterial({ color: 0xdbeafe, transparent: true, opacity: 1.0 });
     // Halo glow disc around the blue-white can light
     const canGlowGeo = new THREE.CircleGeometry(0.55, 24);
     canGlowGeo.rotateX(Math.PI / 2);
@@ -809,7 +803,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       { x: 6.4, z: 28.2, len: 2.9, angle: 0.55 }
     ];
 
-    const redCoreMat = new THREE.MeshBasicMaterial({ color: 0xff1e2e });
+    const redCoreMat = new THREE.MeshBasicMaterial({ color: 0xff1e2e, transparent: true, opacity: 1.0 });
     const redGlowMat = new THREE.MeshBasicMaterial({
       color: 0xef4444,
       transparent: true,
@@ -1460,9 +1454,7 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
         seatHighlightRingRef.current.visible = true;
       }
 
-      // Starry Sky Twinkle Effect
       const time = now * 0.002;
-      starMat.opacity = 0.8 + 0.2 * Math.sin(time * 2);
 
       // Smooth Lighting Transitions (House Lights vs Showtime)
       const isLightsOn = lightsUpRef.current;
@@ -1471,6 +1463,23 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       const targetSpotIntensity = isLightsOn ? 3.8 : 0.25;
       const targetHemiIntensity = isLightsOn ? 1.2 : 0.25;
       const targetProjectorIntensity = isLightsOn ? 1.0 : 3.4;
+
+      // Roof / Ceiling Light Dimming (Turn off completely when lights are off)
+      const targetCoveOpacity = isLightsOn ? 1.0 : 0.0;
+      const targetCanLensOpacity = isLightsOn ? 1.0 : 0.0;
+      const targetCanGlowOpacity = isLightsOn ? 0.35 : 0.0;
+      const targetRedCoreOpacity = isLightsOn ? 1.0 : 0.0;
+      const targetRedGlowOpacity = isLightsOn ? 0.50 : 0.0;
+      const targetStarOpacity = isLightsOn ? (0.8 + 0.2 * Math.sin(time * 2)) : 0.0;
+      const targetSconceOpacity = isLightsOn ? 1.0 : 0.06;
+
+      coveMat.opacity = THREE.MathUtils.lerp(coveMat.opacity, targetCoveOpacity, 0.12);
+      canLensMat.opacity = THREE.MathUtils.lerp(canLensMat.opacity, targetCanLensOpacity, 0.12);
+      canGlowMat.opacity = THREE.MathUtils.lerp(canGlowMat.opacity, targetCanGlowOpacity, 0.12);
+      redCoreMat.opacity = THREE.MathUtils.lerp(redCoreMat.opacity, targetRedCoreOpacity, 0.12);
+      redGlowMat.opacity = THREE.MathUtils.lerp(redGlowMat.opacity, targetRedGlowOpacity, 0.12);
+      starMat.opacity = THREE.MathUtils.lerp(starMat.opacity, targetStarOpacity, 0.12);
+      sconceLensMat.opacity = THREE.MathUtils.lerp(sconceLensMat.opacity, targetSconceOpacity, 0.12);
 
       wallLightsRef.current.forEach(light => {
         light.intensity = THREE.MathUtils.lerp(light.intensity, targetWallIntensity, 0.08);
@@ -1619,10 +1628,10 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
 
     const w = canvas.width;
     const h = canvas.height;
-    const movie = activeTrailer?.id || 'leo';
+    const movie = activeTrailer?.id || 'ramayana';
     const [c1, c2, c3] = (activeTrailer?.colorPalette && activeTrailer.colorPalette.length >= 3)
       ? activeTrailer.colorPalette
-      : ['#e11d2e', '#f97316', '#450a0a'];
+      : ['#f59e0b', '#dc2626', '#451a03'];
     const video = videoElementRef.current;
 
     // 1. Check if raw video is actively playing frames with valid content
@@ -1723,55 +1732,11 @@ export const CinemaCanvas3D: React.FC<CinemaCanvas3DProps> = ({
       ctx.fillText(text, x, y);
     };
 
-    if (movie === 'ramayana') {
-      // RAMAYANA - Official 3D Presentation
-      drawCrispText('RAMAYANA', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#fef08a', 5);
-      drawCrispText('★ SHOWING IN 3D • TELUGU & TAMIL ★', w / 2, h / 2 + 10, 'bold 17px monospace', '#f59e0b', 3);
-      drawCrispText('NAMIT MALHOTRA • NITESH TIWARI • RANBIR KAPOOR • SAI PALLAVI • YASH', w / 2, h / 2 + 36, 'bold 13px "Plus Jakarta Sans", sans-serif', '#ffffff', 2);
-      drawCrispText('BARCO 4K RGB LASER 3D • 64-CHANNEL DOLBY ATMOS IMMERSION', w / 2, h / 2 + 58, '600 11px monospace', '#fbbf24');
-    } else if (movie === 'leo') {
-      // LEO - Official Trailer
-      drawCrispText('LEO', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
-      drawCrispText('★ BLOODY SWEET ★', w / 2, h / 2 + 10, 'bold 18px monospace', '#ef4444', 3);
-      drawCrispText('THALAPATHY VIJAY • LOKESH KANAGARAJ • ANIRUDH', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
-      drawCrispText('LOKESH CINEMATIC UNIVERSE (LCU) • 64-CHANNEL DOLBY ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#f59e0b');
-    } else if (movie === 'coolie') {
-      // COOLIE - Official Teaser
-      drawCrispText('COOLIE', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#fbbf24', 5);
-      drawCrispText('D . I . S . C . O', w / 2, h / 2 + 10, 'bold 17px monospace', '#ffffff', 3);
-      drawCrispText('SUPERSTAR RAJINIKANTH • LOKESH KANAGARAJ • SUN PICTURES', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#fef08a', 2);
-      drawCrispText('THALAIVAR 171 • ANIRUDH "POWERHOUSE" BASS MIX', w / 2, h / 2 + 58, '600 11px monospace', '#eab308');
-    } else if (movie === 'goat') {
-      // THE GREATEST OF ALL TIME (GOAT)
-      drawCrispText('THE GREATEST OF ALL TIME', w / 2, h / 2 - 25, '900 36px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
-      drawCrispText('G . O . A . T', w / 2, h / 2 + 10, 'bold 18px monospace', '#38bdf8', 3);
-      drawCrispText('THALAPATHY VIJAY • VENKAT PRABHU • YUVAN SHANKAR RAJA', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
-      drawCrispText('A VENKAT PRABHU HERO • HIGH-OCTANE CHASE DOLBY ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#60a5fa');
-    } else if (movie === 'amaran') {
-      // AMARAN - Official Trailer
-      drawCrispText('AMARAN', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
-      drawCrispText('MAJOR MUKUND VARADARAJAN AC', w / 2, h / 2 + 10, 'bold 16px monospace', '#86efac', 3);
-      drawCrispText('SIVAKARTHIKEYAN • SAI PALLAVI • RAAJ KAMAL FILMS', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
-      drawCrispText('MUSIC BY GV PRAKASH KUMAR • RASHTRIYA RIFLES TACTICAL ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#4ade80');
-    } else if (movie === 'vikram') {
-      // VIKRAM - Official Trailer
-      drawCrispText('VIKRAM', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
-      drawCrispText('ONCE UPON A TIME THERE LIVED A GHOST', w / 2, h / 2 + 10, 'bold 16px monospace', '#f87171', 3);
-      drawCrispText('KAMAL HAASAN • FAHADH FAASIL • VIJAY SETHUPATHI', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
-      drawCrispText('DIRECTED BY LOKESH KANAGARAJ • ANIRUDH CANNON BASS', w / 2, h / 2 + 58, '600 11px monospace', '#ef4444');
-    } else if (movie === 'jailer') {
-      // JAILER - Showcase
-      drawCrispText('JAILER', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#fde047', 5);
-      drawCrispText('★ TIGER KA HUKUM ★', w / 2, h / 2 + 10, 'bold 18px monospace', '#ffffff', 3);
-      drawCrispText('SUPERSTAR RAJINIKANTH • NELSON DILIPKUMAR • ANIRUDH', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#fef08a', 2);
-      drawCrispText('MUTHUVEL PANDIAN MASS SHOWCASE • 64-CHANNEL ATMOS THUMP', w / 2, h / 2 + 58, '600 11px monospace', '#f59e0b');
-    } else {
-      // PUSHPA 2: THE RULE
-      drawCrispText('PUSHPA 2: THE RULE', w / 2, h / 2 - 25, '900 42px "Plus Jakarta Sans", sans-serif', '#ffffff', 5);
-      drawCrispText('WILDFIRE HAS BEGUN', w / 2, h / 2 + 10, 'bold 17px monospace', '#f97316', 3);
-      drawCrispText('ALLU ARJUN • RASHMIKA MANDANNA • SUKUMAR', w / 2, h / 2 + 36, 'bold 14px "Plus Jakarta Sans", sans-serif', '#f8fafc', 2);
-      drawCrispText('MUSIC BY DEVI SRI PRASAD (DSP) • WILDFIRE DOLBY ATMOS', w / 2, h / 2 + 58, '600 11px monospace', '#fb923c');
-    }
+    // RAMAYANA - Official 3D Presentation
+    drawCrispText('RAMAYANA', w / 2, h / 2 - 25, '900 44px "Plus Jakarta Sans", sans-serif', '#fef08a', 5);
+    drawCrispText('★ SHOWING IN 3D • TELUGU & TAMIL ★', w / 2, h / 2 + 10, 'bold 17px monospace', '#f59e0b', 3);
+    drawCrispText('NAMIT MALHOTRA • NITESH TIWARI • RANBIR KAPOOR • SAI PALLAVI • YASH', w / 2, h / 2 + 36, 'bold 13px "Plus Jakarta Sans", sans-serif', '#ffffff', 2);
+    drawCrispText('BARCO 4K RGB LASER 3D • 64-CHANNEL DOLBY ATMOS IMMERSION', w / 2, h / 2 + 58, '600 11px monospace', '#fbbf24');
 
     // 5. 64-Channel Audio Equalizer Spectrum (Live Animated Waves)
     const barCount = 36;
